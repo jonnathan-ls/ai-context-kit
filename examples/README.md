@@ -18,7 +18,7 @@ examples/
 ## Como Usar os Exemplos
 
 1. Navegue pelos exemplos para entender como estruturar seus próprios arquivos
-2. Use os exemplos como referência ao criar novos items
+2. Use os exemplos como referência ao criar novos itens
 3. Copie e adapte os exemplos conforme necessário
 
 ## Exemplos Disponíveis
