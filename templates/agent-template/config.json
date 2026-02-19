@@ -1,0 +1,28 @@
+{
+  "name": "agent-name",
+  "version": "1.0.0",
+  "description": "Breve descrição do agente",
+  "author": "Seu nome",
+  "type": "assistant",
+  "model": {
+    "provider": "openai",
+    "name": "gpt-4",
+    "temperature": 0.7,
+    "max_tokens": 2000
+  },
+  "capabilities": [
+    "capability1",
+    "capability2",
+    "capability3"
+  ],
+  "tools": [
+    "tool1",
+    "tool2",
+    "tool3"
+  ],
+  "settings": {
+    "timeout": 300,
+    "max_retries": 3,
+    "memory": true
+  }
+}

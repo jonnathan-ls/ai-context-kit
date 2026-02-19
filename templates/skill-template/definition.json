@@ -1,0 +1,20 @@
+{
+  "name": "skill-name",
+  "version": "1.0.0",
+  "description": "Breve descrição da skill",
+  "author": "Seu nome",
+  "category": "categoria",
+  "parameters": {
+    "param1": {
+      "type": "string",
+      "description": "Descrição do parâmetro",
+      "required": true
+    }
+  },
+  "outputs": {
+    "result": {
+      "type": "string",
+      "description": "Descrição do resultado"
+    }
+  }
+}

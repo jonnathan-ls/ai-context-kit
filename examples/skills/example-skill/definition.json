@@ -1,0 +1,30 @@
+{
+  "name": "text-processor",
+  "version": "1.0.0",
+  "description": "Processa texto aplicando transformações",
+  "author": "Example Author",
+  "category": "text-processing",
+  "parameters": {
+    "input_text": {
+      "type": "string",
+      "description": "O texto a ser processado",
+      "required": true
+    },
+    "transformation": {
+      "type": "string",
+      "description": "Tipo de transformação (normalize, uppercase, lowercase)",
+      "required": false,
+      "default": "normalize"
+    }
+  },
+  "outputs": {
+    "processed_text": {
+      "type": "string",
+      "description": "O texto após o processamento"
+    },
+    "transformation_applied": {
+      "type": "string",
+      "description": "A transformação que foi aplicada"
+    }
+  }
+}
