@@ -1,0 +1,36 @@
+name: workflow-name
+version: 1.0.0
+description: Breve descrição do workflow
+author: Seu nome
+
+# Configurações do workflow
+settings:
+  timeout: 300
+  retry_count: 3
+  
+# Passos do workflow
+steps:
+  - name: step1
+    type: action
+    description: Descrição do passo 1
+    parameters:
+      param1: value1
+      
+  - name: step2
+    type: action
+    description: Descrição do passo 2
+    parameters:
+      param1: value1
+      
+  - name: step3
+    type: action
+    description: Descrição do passo 3
+    parameters:
+      param1: value1
+
+# Tratamento de erros
+error_handling:
+  on_failure: stop
+  notifications:
+    - type: email
+      recipients: []

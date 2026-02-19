@@ -1,0 +1,53 @@
+name: data-processing-pipeline
+version: 1.0.0
+description: Pipeline completo de processamento de dados
+author: Example Author
+
+settings:
+  timeout: 600
+  retry_count: 3
+  parallel: false
+  
+steps:
+  - name: collect_data
+    type: action
+    description: Coleta dados da fonte
+    parameters:
+      source: "database"
+      query: "SELECT * FROM data_table"
+      
+  - name: clean_data
+    type: action
+    description: Limpa e valida os dados
+    parameters:
+      remove_duplicates: true
+      validate_schema: true
+      
+  - name: transform_data
+    type: action
+    description: Transforma os dados conforme necessário
+    parameters:
+      transformations:
+        - type: "normalize"
+        - type: "aggregate"
+      
+  - name: analyze_data
+    type: action
+    description: Executa análises estatísticas
+    parameters:
+      analysis_types:
+        - "descriptive"
+        - "correlation"
+        
+  - name: generate_report
+    type: action
+    description: Gera relatório com os resultados
+    parameters:
+      format: "pdf"
+      include_charts: true
+
+error_handling:
+  on_failure: rollback
+  notifications:
+    - type: email
+      recipients: ["admin@example.com"]

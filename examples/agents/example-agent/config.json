@@ -1,0 +1,31 @@
+{
+  "name": "code-assistant",
+  "version": "1.0.0",
+  "description": "Assistente especializado em análise e melhoria de código",
+  "author": "Example Author",
+  "type": "assistant",
+  "model": {
+    "provider": "openai",
+    "name": "gpt-4",
+    "temperature": 0.3,
+    "max_tokens": 3000
+  },
+  "capabilities": [
+    "code-analysis",
+    "documentation",
+    "refactoring",
+    "bug-detection"
+  ],
+  "tools": [
+    "code-analyzer",
+    "doc-generator",
+    "refactor-tool",
+    "bug-detector"
+  ],
+  "settings": {
+    "timeout": 300,
+    "max_retries": 3,
+    "memory": true,
+    "context_window": 8000
+  }
+}
