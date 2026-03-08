@@ -79,8 +79,8 @@ Show current project and agent status.
 
 ---
 
-## Technical
+## Notes
 
-Status uses these scripts:
-- `python .agent/scripts/session_manager.py status`
-- `python .agent/scripts/auto_preview.py status`
+- Run `git status` and `git log --oneline -10` for recent change context
+- Check running processes with `lsof -i :3000` or `ps aux | grep node` for server status
+- File stats can be obtained with `git diff --stat HEAD~1`

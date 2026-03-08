@@ -559,6 +559,164 @@ def cmd_config(args):
     print(f'     export PATH="$AICTX_HOME/scripts:$PATH"\n')
 
 
+def cmd_doctor(args):
+    """Validate integrity of ai-context resources."""
+    global AICTX_HOME
+    AICTX_HOME = resolve_aictx_home()
+
+    print(f"\n🩺 AI Context — Doctor")
+    print(f"   Source : {AICTX_HOME}\n")
+
+    errors   = []
+    warnings = []
+    ok       = []
+
+    # ── 1. Skills folder structure ──────────────────────────────────────────
+    skills_dir = AICTX_HOME / "skills"
+    if skills_dir.exists():
+        for d in sorted(skills_dir.iterdir()):
+            if d.is_dir():
+                skill_file = next((d / f for f in ["SKILL.md", "skill.md"] if (d / f).exists()), None)
+                if not skill_file:
+                    errors.append(f"skills/{d.name}/ — missing SKILL.md")
+                else:
+                    ok.append(f"skills/{d.name}/SKILL.md")
+            elif d.is_file() and d.suffix == ".md" and d.name.upper() != "README.MD":
+                warnings.append(f"skills/{d.name} — orphan .md file (not inside a skill folder)")
+
+    # ── 2. Agent skill reference validation ─────────────────────────────────
+    agents_dir = AICTX_HOME / "agents"
+    if agents_dir.exists():
+        for agent_file in sorted(agents_dir.glob("*.md")):
+            fm = read_frontmatter(agent_file)
+            skill_refs = [s.strip() for s in fm.get("skills", "").split(",") if s.strip()]
+            for ref in skill_refs:
+                skill_path = skills_dir / ref
+                if not skill_path.exists():
+                    errors.append(f"agents/{agent_file.name} → skill \"{ref}\" not found in skills/")
+                else:
+                    ok.append(f"agents/{agent_file.name} → {ref} ✓")
+
+    # ── 3. Workflow reference validation ─────────────────────────────────────
+    workflows_dir = AICTX_HOME / "workflows"
+    if workflows_dir.exists():
+        for wf in sorted(workflows_dir.glob("*.md")):
+            content = wf.read_text()
+            # check for references to skills that don't exist
+            import re
+            refs = re.findall(r"`([a-z][a-z0-9-]+)`\s+skill", content)
+            for ref in refs:
+                if not (skills_dir / ref).exists():
+                    warnings.append(f"workflows/{wf.name} → skill \"{ref}\" referenced but not found")
+
+    # ── 4. Symlink integrity ─────────────────────────────────────────────────
+    for target_key, target in TARGETS.items():
+        if target["link_type"] == "folders":
+            base = target["base"]
+            if base.exists():
+                for resource in RESOURCES:
+                    dst = base / resource
+                    if dst.is_symlink() and not dst.exists():
+                        errors.append(f"{target_key}/{resource} — broken symlink → {dst.resolve()}")
+
+    # ── 5. rules/ALWAYS.md ──────────────────────────────────────────────────
+    always_path = AICTX_HOME / "rules" / "ALWAYS.md"
+    if not always_path.exists():
+        errors.append("rules/ALWAYS.md — not found (run: aictx sync)")
+    else:
+        ok.append("rules/ALWAYS.md")
+
+    # ── Report ───────────────────────────────────────────────────────────────
+    if errors:
+        print(f"❌ {len(errors)} error(s):")
+        for e in errors:
+            print(f"   ✗  {e}")
+        print()
+
+    if warnings:
+        print(f"⚠️  {len(warnings)} warning(s):")
+        for w in warnings:
+            print(f"   ⚠  {w}")
+        print()
+
+    total_ok = len(ok) - len(errors)  # don't double-count
+    print(f"✅ {len(ok)} check(s) passed")
+
+    if not errors and not warnings:
+        print("\n🎉 Everything looks healthy!\n")
+    else:
+        print(f"\n💡 Run `aictx sync` after fixing issues.\n")
+
+    return 1 if errors else 0
+
+
+def cmd_add(args):
+    """Scaffold a new skill or agent."""
+    global AICTX_HOME
+    AICTX_HOME = resolve_aictx_home()
+
+    kind = args.kind  # "skill" or "agent"
+    name = args.name.lower().replace(" ", "-")
+
+    if kind == "skill":
+        target_dir = AICTX_HOME / "skills" / name
+        if target_dir.exists():
+            print(f"\n⚠️  skills/{name} already exists.")
+            return 1
+
+        target_dir.mkdir(parents=True)
+        description = args.description or f"{name} skill"
+
+        skill_content = (
+            "---\n"
+            f"name: {name}\n"
+            f"description: {description}\n"
+            "version: 1.0.0\n"
+            "---\n\n"
+            f"# {name.replace('-', ' ').title()}\n\n"
+            "## Purpose\n\n"
+            f"Description of what {name} does.\n\n"
+            "## Usage\n\n"
+            "When to invoke this skill and how.\n\n"
+            "## Rules\n\n"
+            "- Rule 1\n"
+            "- Rule 2\n"
+        )
+        (target_dir / "SKILL.md").write_text(skill_content)
+        print(f"\n✅ Skill scaffolded → {target_dir}/SKILL.md")
+        print(f"   Edit the file, then run `aictx sync`\n")
+
+    elif kind == "agent":
+        target_path = AICTX_HOME / "agents" / f"{name}.md"
+        if target_path.exists():
+            print(f"\n⚠️  agents/{name}.md already exists.")
+            return 1
+
+        description   = args.description or f"{name} specialist agent"
+        skills_list   = args.skills or "clean-code"
+
+        agent_content = (
+            "---\n"
+            f"name: {name}\n"
+            f"description: {description}\n"
+            "tools: Read, Grep, Glob, Edit, Write\n"
+            "model: inherit\n"
+            f"skills: {skills_list}\n"
+            "---\n\n"
+            f"# {name.replace('-', ' ').title()}\n\n"
+            "## Role\n\n"
+            f"You are a specialist in {name.replace('-', ' ')}.\n\n"
+            "## Rules\n\n"
+            "- Rule 1\n"
+            "- Rule 2\n"
+        )
+        target_path.write_text(agent_content)
+        print(f"\n✅ Agent scaffolded → {target_path}")
+        print(f"   Edit the file, then run `aictx sync`\n")
+
+    return 0
+
+
 def main():
     parser = argparse.ArgumentParser(
         prog="aictx",
@@ -578,6 +736,14 @@ Examples:
 
     sub = parser.add_subparsers(dest="command")
     sub.add_parser("sync",      help="Scan resources and regenerate ALWAYS.md").set_defaults(func=cmd_sync)
+    sub.add_parser("doctor",    help="Validate integrity of ai-context resources").set_defaults(func=cmd_doctor)
+
+    p_add = sub.add_parser("add", help="Scaffold a new skill or agent")
+    p_add.add_argument("kind", choices=["skill", "agent"], help="What to create")
+    p_add.add_argument("name", help="Name of the skill or agent (e.g. my-skill)")
+    p_add.add_argument("--description", "-d", help="Short description")
+    p_add.add_argument("--skills", "-s", help="Comma-separated skill refs (agents only)")
+    p_add.set_defaults(func=cmd_add)
     sub.add_parser("status",    help="Show link status").set_defaults(func=cmd_status)
     sub.add_parser("uninstall", help="Remove all managed links").set_defaults(func=cmd_uninstall)
     sub.add_parser("config",    help="Show configuration").set_defaults(func=cmd_config)

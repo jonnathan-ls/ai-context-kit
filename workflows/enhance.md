@@ -15,8 +15,9 @@ This command adds features or makes updates to existing application.
 ### Steps:
 
 1. **Understand Current State**
-   - Load project state with `python .agent/scripts/session_manager.py info`
-   - Understand existing features, tech stack
+   - Read the project's README, package.json, or main config files
+   - Understand existing features and tech stack
+   - Identify which files are likely affected by the requested change
 
 2. **Plan Changes**
    - Determine what will be added/changed
