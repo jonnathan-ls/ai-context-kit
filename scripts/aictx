@@ -177,21 +177,6 @@ def build_always_md(aictx_home: Path, resources: dict) -> str:
     skills_ref   = ", ".join("`" + s["name"] + "`" for s in resources["skills"]) or "(none)"
     workflow_ref = ", ".join("`" + w["name"] + "`" for w in resources["workflows"]) or "(none)"
 
-    # Embed each rule file (strip frontmatter)
-    rules_dir = aictx_home / "rules"
-    embedded_rules = []
-    for r in resources["rules"]:
-        rule_path = rules_dir / r["file"]
-        if rule_path.exists():
-            content = rule_path.read_text().strip()
-            if content.startswith("---"):
-                parts = content.split("---", 2)
-                content = parts[2].strip() if len(parts) >= 3 else content
-            embedded_rules.append(
-                "<!-- @include: rules/" + r["file"] + " -->\n\n" + content
-            )
-    rules_body = "\n\n---\n\n".join(embedded_rules)
-
     rules_index = "".join(
         "- **" + r["name"] + "** → `~/.ai-context/rules/" + r["file"] + "`"
         + (" — " + r["description"] if r["description"] else "")
@@ -256,7 +241,6 @@ def build_always_md(aictx_home: Path, resources: dict) -> str:
         "## 📋 Additional Rules Index\n\n"
         + rules_index + "\n"
         "---\n\n"
-        + rules_body + "\n\n"
         "---\n\n"
         "## 📁 AI Context Structure\n\n"
         "```\n"
@@ -717,6 +701,121 @@ def cmd_add(args):
     return 0
 
 
+
+def _ls_header(emoji: str, title: str, count: int) -> None:
+    W = "[1;37m"; C = "[96m"; R = "[0m"; DIM = "[2m"
+    line = f"{DIM}{'─' * 56}{R}"
+    print(f"\n{line}")
+    print(f"  {emoji}  {W}{title}{R}  {C}({count}){R}")
+    print(f"{line}")
+
+
+def _ls_row(name: str, desc: str, badge: str = "", indent: int = 2) -> None:
+    G = "[1;32m"; Y = "[93m"; R = "[0m"; DIM = "[2m"
+    pad   = " " * indent
+    label = f"{G}{name}{R}"
+    badge_txt = f" {Y}{badge}{R}" if badge else ""
+    if desc:
+        # Wrap desc at 56 chars
+        import textwrap
+        lines = textwrap.wrap(desc, width=56)
+        print(f"{pad}{label}{badge_txt}")
+        for l in lines:
+            print(f"{pad}  {DIM}{l}{R}")
+    else:
+        print(f"{pad}{label}{badge_txt}")
+
+
+def cmd_ls(args):
+    """List available skills, agents, or workflows with descriptions."""
+    AICTX_HOME = resolve_aictx_home()
+    resources  = scan_resources(AICTX_HOME)
+    kind       = getattr(args, "kind", None) or "all"
+    C = "[96m"; DIM = "[2m"; R = "[0m"; B = "[1;34m"
+
+    if kind in ("skills", "all"):
+        items = sorted(resources["skills"], key=lambda x: x["name"])
+        metas = [s for s in items if s.get("tag") == "meta"]
+        normals = [s for s in items if s.get("tag") != "meta"]
+        _ls_header("🎯", "SKILLS", len(items))
+
+        if metas:
+            print(f"\n  {C}always active{R}")
+            for s in metas:
+                _ls_row(s["name"], s.get("description", ""), badge="[meta]", indent=4)
+
+        if normals:
+            print(f"\n  {DIM}domain skills{R}")
+            for s in normals:
+                _ls_row(s["name"], s.get("description", ""), indent=4)
+
+    if kind in ("agents", "all"):
+        items = sorted(resources["agents"], key=lambda x: x["name"])
+        _ls_header("🤖", "AGENTS", len(items))
+        for a in items:
+            skill_list = a.get("skills", "")
+            desc = a.get("description", "")
+            print()
+            _ls_row(a["name"], desc, indent=2)
+            if skill_list:
+                tags = [t.strip() for t in skill_list.split(",") if t.strip()]
+                tag_str = "  ".join(f"{DIM}·{R} {C}{t}{R}" for t in tags)
+                print(f"    {tag_str}")
+
+    if kind in ("workflows", "all"):
+        items = sorted(resources["workflows"], key=lambda x: x["name"])
+        _ls_header("⚡", "WORKFLOWS", len(items))
+        for w in items:
+            _ls_row(f"/{w['name']}", w.get("description", ""), indent=2)
+
+    W = "[2m"; R = "[0m"
+    print(f"\n{W}{'─' * 56}{R}\n")
+    return 0
+
+
+def cmd_init(args):
+    """Scaffold a .agent/ context directory in the current (or given) project."""
+    AICTX_HOME = resolve_aictx_home()
+    from pathlib import Path as _P
+    project_dir = _P(args.path).resolve() if getattr(args, "path", None) else _P.cwd()
+    agent_dir   = project_dir / ".agent"
+
+    if agent_dir.exists() and not getattr(args, "force", False):
+        print(f"\n⚠️  {agent_dir} already exists — use --force to reinit\n")
+        return 1
+
+    agent_dir.mkdir(parents=True, exist_ok=True)
+
+    context_file = agent_dir / "CONTEXT.md"
+    context_content = (
+        "---\n"
+        "trigger: always_on\n"
+        'applyTo: "**"\n'
+        "---\n\n"
+        f"# Project Context — {project_dir.name}\n\n"
+        "## Stack\n\n"
+        "> Describe your tech stack (language, framework, runtime)\n\n"
+        "## Key Directories\n\n"
+        "> List key dirs and their purpose (e.g. `src/` — app code)\n\n"
+        "## Conventions\n\n"
+        "> Project-specific rules that override global standards\n\n"
+        "## Active Skills\n\n"
+        f"> Reference skills from `{AICTX_HOME}/skills/`\n"
+        "> Example: prefer `clean-code`, `api-patterns`\n"
+    )
+    context_file.write_text(context_content)
+
+    print(f"\n🚀 AI Context — Init")
+    print(f"   Project : {project_dir.name}")
+    print(f"   Dir     : {agent_dir}\n")
+    print(f"✅ Created → {context_file}")
+    print(f"\n💡 Next steps:")
+    print(f"   1. Edit .agent/CONTEXT.md with your project details")
+    print(f"   2. Add its path to VS Code settings → chat.instructionsFilesLocations")
+    print(f"   3. Or run: aictx install --all\n")
+    return 0
+
+
 def main():
     parser = argparse.ArgumentParser(
         prog="aictx",
@@ -728,6 +827,9 @@ Examples:
   aictx install           Interactive install
   aictx install --all     Install all targets without prompts
   aictx install --force   Overwrite existing links
+  aictx ls                List all skills, agents, workflows
+  aictx ls skills         List only skills
+  aictx init              Scaffold .agent/ in current project
   aictx status            Show current status
   aictx uninstall         Remove all links
   aictx config            Show configuration
@@ -747,6 +849,15 @@ Examples:
     sub.add_parser("status",    help="Show link status").set_defaults(func=cmd_status)
     sub.add_parser("uninstall", help="Remove all managed links").set_defaults(func=cmd_uninstall)
     sub.add_parser("config",    help="Show configuration").set_defaults(func=cmd_config)
+
+    p_ls = sub.add_parser("ls", help="List available skills, agents, or workflows")
+    p_ls.add_argument("kind", nargs="?", choices=["skills", "agents", "workflows"], help="What to list (default: all)")
+    p_ls.set_defaults(func=cmd_ls)
+
+    p_init = sub.add_parser("init", help="Scaffold a .agent/ context dir in the current project")
+    p_init.add_argument("path", nargs="?", help="Project path (default: current directory)")
+    p_init.add_argument("--force", action="store_true", help="Reinit even if .agent/ exists")
+    p_init.set_defaults(func=cmd_init)
 
     p_install = sub.add_parser("install", help="Install resource links to AI tools")
     p_install.add_argument("--all",   action="store_true", help="Install all targets and resources")
