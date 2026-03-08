@@ -1,6 +1,7 @@
 ---
 name: knowledge-integrator
 description: Automatic retroactive feeder. Identifies newly generated context in chat and suggests exact updates to the project's master documentation files without altering them directly.
+tag: meta
 ---
 # Knowledge Integrator Skill (O Retro-Alimentador)
 

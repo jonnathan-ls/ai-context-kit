@@ -1,6 +1,7 @@
 ---
 name: study-notes-writer
 description: Gerador proativo de notas de estudo em Markdown. Ao entender um conceito durante uma interação educacional, converte o conhecimento em anotações imperativas, estruturadas e persistentes dentro de uma pasta `studies/` do projeto atual, organizada por domínio de tópico.
+tag: meta
 ---
 # Study Notes Writer Skill
 

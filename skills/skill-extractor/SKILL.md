@@ -1,6 +1,7 @@
 ---
 name: skill-extractor
 description: Meta-skill global e proativa. Monitora QUALQUER tipo de sessão (estudo, código, decisões, arquitetura) e detecta padrões que justificam a criação de novas skills. Atua como arquiteto de habilidades do Antigravity.
+tag: meta
 ---
 # Skill Extractor Skill (Meta-Skill Global)
 

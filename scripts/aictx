@@ -1,0 +1,599 @@
+#!/usr/bin/env python3
+"""
+aictx — AI Context CLI
+
+Manages symbolic links from ~/.ai-context resources to AI tools
+(Copilot, Claude Code, Gemini, etc.) and keeps ALWAYS.md in sync.
+
+Commands:
+    aictx sync              Scan resources and regenerate ALWAYS.md
+    aictx install           Interactive installation of links
+    aictx install --all     Install all targets and resources
+    aictx install --force   Overwrite existing links
+    aictx status            Show current link/resource status
+    aictx uninstall         Remove all managed links
+    aictx config            Show current configuration
+"""
+
+import os
+import sys
+import json
+import re
+import argparse
+import platform
+from pathlib import Path
+from datetime import datetime
+
+HOME = Path.home()
+AICTX_HOME = Path(os.environ.get("AICTX_HOME", HOME / ".ai-context"))
+
+RESOURCES = ["rules", "skills", "agents", "workflows"]
+
+TARGETS = {
+    "copilot": {
+        "description": "VS Code Copilot (User Profile instructions + settings)",
+        "link_type": "copilot",
+        "paths": {
+            "instructions": HOME / ".config/Code/User/prompts/ai-context.instructions.md",
+            "settings":     HOME / ".config/Code/User/settings.json",
+        }
+    },
+    "claude": {
+        "description": "Claude Code (~/.claude — also read by VS Code Copilot)",
+        "link_type": "folders",
+        "base": HOME / ".claude",
+        "resources": RESOURCES,
+    },
+    "gemini": {
+        "description": "Gemini CLI (~/.gemini/antigravity)",
+        "link_type": "folders",
+        "base": HOME / ".gemini/antigravity",
+        "resources": RESOURCES,
+    },
+    "cursor": {
+        "description": "Cursor IDE (~/.cursor)",
+        "link_type": "folders",
+        "base": HOME / ".cursor",
+        "resources": RESOURCES,
+    },
+    "windsurf": {
+        "description": "Windsurf IDE (~/.windsurf)",
+        "link_type": "folders",
+        "base": HOME / ".windsurf",
+        "resources": RESOURCES,
+    },
+}
+
+
+def resolve_aictx_home() -> Path:
+    return Path(__file__).resolve().parent.parent
+
+
+def read_frontmatter(filepath: Path) -> dict:
+    data = {}
+    try:
+        content = filepath.read_text()
+        if not content.startswith("---"):
+            return data
+        lines = content.split("\n")
+        in_front = False
+        for line in lines:
+            if line.strip() == "---":
+                if not in_front:
+                    in_front = True
+                    continue
+                else:
+                    break
+            if in_front and ":" in line:
+                key, _, value = line.partition(":")
+                data[key.strip()] = value.strip().strip('"')
+    except Exception:
+        pass
+    return data
+
+
+def scan_resources(aictx_home: Path) -> dict:
+    result = {"rules": [], "skills": [], "agents": [], "workflows": []}
+
+    rules_dir = aictx_home / "rules"
+    if rules_dir.exists():
+        for f in sorted(rules_dir.glob("*.md")):
+            if f.stem.lower() in ("always", "always_md"):
+                continue
+            fm = read_frontmatter(f)
+            result["rules"].append({
+                "name": f.stem,
+                "file": f.name,
+                "priority": fm.get("priority", "P0"),
+                "trigger": fm.get("trigger", "always_on"),
+                "description": fm.get("description", ""),
+            })
+
+    skills_dir = aictx_home / "skills"
+    if skills_dir.exists():
+        for d in sorted(skills_dir.iterdir()):
+            if d.is_dir():
+                skill_file = next(
+                    (d / fn for fn in ["SKILL.md", "skill.md"] if (d / fn).exists()), None
+                )
+                if skill_file:
+                    fm = read_frontmatter(skill_file)
+                    result["skills"].append({
+                        "name": d.name,
+                        "tag": fm.get("tag", ""),
+                        "description": fm.get("description", ""),
+                    })
+
+    agents_dir = aictx_home / "agents"
+    if agents_dir.exists():
+        for f in sorted(agents_dir.glob("*.md")):
+            fm = read_frontmatter(f)
+            result["agents"].append({
+                "name": f.stem,
+                "description": fm.get("description", ""),
+                "skills": fm.get("skills", ""),
+            })
+
+    workflows_dir = aictx_home / "workflows"
+    if workflows_dir.exists():
+        for f in sorted(workflows_dir.glob("*.md")):
+            fm = read_frontmatter(f)
+            result["workflows"].append({
+                "name": f.stem,
+                "description": fm.get("description", ""),
+            })
+
+    return result
+
+
+def build_bootstrap_block() -> str:
+    """Minimal session bootstrap — just confirms AI Context is active."""
+    return """## 🚀 SESSION BOOTSTRAP
+
+> Output at the very start of EVERY conversation — no exceptions.
+
+```
+🧠 AI Context — Session Active
+```
+"""
+
+def build_always_md(aictx_home: Path, resources: dict) -> str:
+    """Generate ALWAYS.md — hybrid: minimal protocol + embedded rule files."""
+    from datetime import datetime
+    now = datetime.now().strftime("%Y-%m-%d %H:%M")
+    bootstrap = build_bootstrap_block()
+
+    # Meta-skills: tag=meta in SKILL.md frontmatter
+    meta_skills = [s for s in resources["skills"] if s.get("tag") == "meta"]
+    if meta_skills:
+        meta_list = "\n".join(
+            "- `" + s["name"] + "`" + (" — " + s["description"] if s.get("description") else "")
+            for s in meta_skills
+        )
+    else:
+        meta_list = "> (none — add `tag: meta` to SKILL.md frontmatter to mark always-active skills)"
+
+    agents_ref   = ", ".join("`" + a["name"] + "`" for a in resources["agents"]) or "(none)"
+    skills_ref   = ", ".join("`" + s["name"] + "`" for s in resources["skills"]) or "(none)"
+    workflow_ref = ", ".join("`" + w["name"] + "`" for w in resources["workflows"]) or "(none)"
+
+    # Embed each rule file (strip frontmatter)
+    rules_dir = aictx_home / "rules"
+    embedded_rules = []
+    for r in resources["rules"]:
+        rule_path = rules_dir / r["file"]
+        if rule_path.exists():
+            content = rule_path.read_text().strip()
+            if content.startswith("---"):
+                parts = content.split("---", 2)
+                content = parts[2].strip() if len(parts) >= 3 else content
+            embedded_rules.append(
+                "<!-- @include: rules/" + r["file"] + " -->\n\n" + content
+            )
+    rules_body = "\n\n---\n\n".join(embedded_rules)
+
+    rules_index = "".join(
+        "- **" + r["name"] + "** → `~/.ai-context/rules/" + r["file"] + "`"
+        + (" — " + r["description"] if r["description"] else "")
+        + "\n"
+        for r in resources["rules"]
+    ) or "> (no additional rule files found)\n"
+
+    home_str     = str(aictx_home)
+    now_str      = now
+    return (
+        "---\n"
+        "trigger: always_on\n"
+        'applyTo: "**"\n'
+        "---\n\n"
+        "# ALWAYS-ON RULES (P0)\n\n"
+        "> ⚠️  **Auto-generated by `aictx sync` — Do not edit manually.**\n"
+        "> Last sync: " + now_str + "\n"
+        "> Source: `" + home_str + "`\n\n"
+        "---\n\n"
+        + bootstrap +
+        "---\n\n"
+        "## 🔴 ENFORCEMENT PROTOCOL\n\n"
+        "**Processing order — never skip levels:**\n\n"
+        "`P0 Rules → Meta-Skills → Agent (P1) → Domain Skills (P2) → Implement`\n\n"
+        "| Level | Source | When Active | Priority |\n"
+        "|-------|--------|-------------|----------|\n"
+        "| **P0** | `rules/` | Always — every session | Highest |\n"
+        "| **P1** | `agents/{agent}.md` | When agent is selected | High |\n"
+        "| **P2** | `skills/{skill}/SKILL.md` | When skill is loaded by agent | Medium |\n\n"
+        "---\n\n"
+        "## 🧠 META-SKILLS (Always Active)\n\n"
+        "Loaded before any agent selection. Monitor the entire session regardless of domain.\n\n"
+        + meta_list + "\n\n"
+        "---\n\n"
+        "## 🤖 AGENT & SKILL ACTIVATION\n\n"
+        "### Selection (silent — no output needed)\n"
+        "1. Analyze the request domain\n"
+        "2. Select the best specialist agent from `agents/`\n"
+        "3. Read the agent's `skills:` frontmatter → load relevant SKILL.md\n"
+        "4. Apply all rules before generating output\n\n"
+        "### Announcement (always — before responding)\n"
+        "After selecting an agent + skill, output a label before the response:\n\n"
+        "```\n"
+        "> 🤖 **agent-name** · 🎯 **skill-name**\n"
+        "```\n\n"
+        "Example:\n"
+        "```\n"
+        "> 🤖 **frontend-specialist** · 🎯 **nextjs-react-expert**\n"
+        "```\n\n"
+        "If no domain agent applies, omit the label and respond with P0 rules only.\n\n"
+        "---\n\n"
+        "## 📋 REQUEST CLASSIFIER\n\n"
+        "Before any action, classify silently:\n\n"
+        "| Type | Keywords | Action |\n"
+        "|------|----------|--------|\n"
+        '| **Question** | "what is", "how", "why", "explain" | Text answer — no code unless asked |\n'
+        '| **Simple task** | "fix", "add", "change" | Targeted edit — no scope expansion |\n'
+        '| **Complex task** | "build", "create", "implement", "refactor" | Select agent → load skills → implement |\n'
+        '| **Plan** | "plan", "outline", "strategy" | Structured breakdown — no implementation |\n'
+        '| **Review** | "review", "check", "audit" | Feedback only — no rewrites unless asked |\n\n'
+        "---\n\n"
+        "## 📋 Additional Rules Index\n\n"
+        + rules_index + "\n"
+        "---\n\n"
+        + rules_body + "\n\n"
+        "---\n\n"
+        "## 📁 AI Context Structure\n\n"
+        "```\n"
+        + home_str + "/\n"
+        "├── rules/          ← P0 — Applied to every response\n"
+        "├── agents/         ← P1 — Applied when agent is selected\n"
+        "├── skills/         ← P2 — Applied when skill is loaded by an agent\n"
+        "└── workflows/      ← Automation workflows, invoked on demand\n"
+        "```\n\n"
+        "---\n\n"
+        "## 📦 Quick Reference\n\n"
+        "**Agents:** " + agents_ref + "\n\n"
+        "**All Skills:** " + skills_ref + "\n\n"
+        "**Workflows:** " + workflow_ref + "\n"
+    )
+
+
+def make_link(src: Path, dst: Path, force: bool = False) -> str:
+    if not src.exists():
+        return f"⚠  {dst.name} → source not found: {src}"
+    if dst.is_symlink():
+        if force:
+            dst.unlink()
+        else:
+            if dst.resolve() == src.resolve():
+                return f"✓  {dst.name} → already linked"
+            return f"⚠  {dst.name} → wrong target (use --force to overwrite)"
+    if dst.exists() and not dst.is_symlink():
+        if force:
+            import shutil
+            shutil.rmtree(dst) if dst.is_dir() else dst.unlink()
+        else:
+            return f"⚠  {dst.name} → real path exists (use --force)"
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    dst.symlink_to(src)
+    return f"✓  {dst.name} → {src}"
+
+
+def link_status(dst: Path, src: Path) -> str:
+    if not dst.exists() and not dst.is_symlink():
+        return "✗  not linked"
+    if dst.is_symlink():
+        resolved = dst.resolve()
+        if resolved == src.resolve():
+            return "✓  linked"
+        if not dst.exists():
+            return "⚠  broken link"
+        return f"⚠  wrong target → {resolved}"
+    return "⚠  real file/folder (not a symlink)"
+
+
+def parse_jsonc(text: str) -> dict:
+    """Parse JSONC (JSON with Comments + trailing commas)."""
+    # Remove single-line comments
+    text = re.sub(r"//[^\n]*", "", text)
+    # Remove block comments
+    text = re.sub(r"/\*.*?\*/", "", text, flags=re.DOTALL)
+    # Remove trailing commas before } or ]
+    text = re.sub(r",\s*([\]}])", r"\1", text)
+    return json.loads(text)
+
+
+def inject_vscode_settings(settings_path: Path, resources: list):
+    settings_path.parent.mkdir(parents=True, exist_ok=True)
+    data = {}
+    if settings_path.exists():
+        try:
+            data = parse_jsonc(settings_path.read_text())
+        except Exception as e:
+            print(f"  ⚠  Could not parse {settings_path}: {e} — skipping")
+            return
+
+    locations = data.get("chat.instructionsFilesLocations", {})
+    changed = False
+    for resource in resources:
+        abs_path = str(AICTX_HOME / resource)
+        tilde_path = abs_path.replace(str(HOME), "~")
+        if abs_path in locations or tilde_path in locations:
+            print(f"  ✓  settings.json ← {resource} already registered")
+        else:
+            locations[abs_path] = True
+            changed = True
+            print(f"  ✓  settings.json ← registered {resource}")
+
+    if changed:
+        data["chat.instructionsFilesLocations"] = locations
+        with open(settings_path, "w") as f:
+            json.dump(data, f, indent=2)
+
+
+def cmd_sync(args):
+    global AICTX_HOME
+    AICTX_HOME = resolve_aictx_home()
+
+    print(f"\n🔄 AI Context — Sync")
+    print(f"   Source : {AICTX_HOME}\n")
+
+    resources = scan_resources(AICTX_HOME)
+
+    print(f"   rules     : {len(resources['rules'])}")
+    print(f"   skills    : {len(resources['skills'])}  ({sum(1 for s in resources['skills'] if s.get('tag') == 'meta')} meta)")
+    print(f"   agents    : {len(resources['agents'])}")
+    print(f"   workflows : {len(resources['workflows'])}\n")
+
+    always_path = AICTX_HOME / "rules" / "ALWAYS.md"
+    content = build_always_md(AICTX_HOME, resources)
+    always_path.write_text(content)
+    print(f"✅ ALWAYS.md regenerated → {always_path}")
+
+    copilot_instr = HOME / ".config/Code/User/prompts/ai-context.instructions.md"
+    if copilot_instr.is_symlink():
+        # Symlink → target already written (ALWAYS.md), just confirm
+        target = copilot_instr.resolve() if copilot_instr.exists() else None
+        if target:
+            print(f"✅ Copilot instructions → symlink to {target.name} (already updated)")
+        else:
+            print(f"⚠  Copilot instructions symlink is broken → {copilot_instr}")
+    elif copilot_instr.exists():
+        copilot_instr.write_text(content)
+        print(f"✅ Copilot instructions updated → {copilot_instr}")
+
+    print()
+
+
+def cmd_install(args):
+    global AICTX_HOME
+    AICTX_HOME = resolve_aictx_home()
+
+    print(f"\n🧠 AI Context — Install")
+    print(f"   Source : {AICTX_HOME}")
+
+    if args.all:
+        selected_targets   = list(TARGETS.keys())
+        selected_resources = RESOURCES
+    else:
+        print("\nAvailable targets:")
+        keys = list(TARGETS.keys())
+        for i, key in enumerate(keys):
+            print(f"  [{i+1}] {key:12} — {TARGETS[key]['description']}")
+        print("  [a] All")
+        raw = input("\nSelect targets (comma-separated or 'a'): ").strip().lower()
+        if raw == "a":
+            selected_targets = keys
+        else:
+            selected_targets = [
+                keys[int(p.strip()) - 1]
+                for p in raw.split(",")
+                if p.strip().isdigit() and 0 <= int(p.strip()) - 1 < len(keys)
+            ]
+
+        print("\nAvailable resources:")
+        for i, r in enumerate(RESOURCES):
+            print(f"  [{i+1}] {r}")
+        print("  [a] All")
+        raw = input("\nSelect resources (comma-separated or 'a'): ").strip().lower()
+        if raw == "a":
+            selected_resources = RESOURCES
+        else:
+            selected_resources = [
+                RESOURCES[int(p.strip()) - 1]
+                for p in raw.split(",")
+                if p.strip().isdigit() and 0 <= int(p.strip()) - 1 < len(RESOURCES)
+            ]
+
+    if not selected_targets or not selected_resources:
+        print("Nothing selected. Aborting.")
+        return
+
+    print()
+
+    for target_key in selected_targets:
+        target = TARGETS[target_key]
+        print(f"🔗 {target_key} — {target['description']}")
+
+        if target["link_type"] == "copilot":
+            instr_path = target["paths"]["instructions"]
+            instr_path.parent.mkdir(parents=True, exist_ok=True)
+            always_path = AICTX_HOME / "rules" / "ALWAYS.md"
+            instr_path.write_text(
+                always_path.read_text() if always_path.exists()
+                else "# ALWAYS.md not found — run: aictx sync\n"
+            )
+            print(f"  ✓  {instr_path.name} ← written from ALWAYS.md")
+            inject_vscode_settings(target["paths"]["settings"], selected_resources)
+
+        elif target["link_type"] == "folders":
+            base = target["base"]
+            base.mkdir(parents=True, exist_ok=True)
+            for resource in selected_resources:
+                src = AICTX_HOME / resource
+                dst = base / resource
+                print(f"  {make_link(src, dst, force=args.force)}")
+
+        print()
+
+    print("✅ Done. Run `aictx status` to verify.")
+    print("💡 Tip: Run `aictx sync` anytime you add new skills, agents or rules.\n")
+
+
+def cmd_status(args):
+    global AICTX_HOME
+    AICTX_HOME = resolve_aictx_home()
+
+    print(f"\n🧠 AI Context — Status")
+    print(f"   Source : {AICTX_HOME}\n")
+
+    resources = scan_resources(AICTX_HOME)
+    print(f"📦 Resources:")
+    print(f"   rules     : {len(resources['rules'])}")
+    print(f"   skills    : {len(resources['skills'])}  ({sum(1 for s in resources['skills'] if s.get('tag') == 'meta')} meta)")
+    print(f"   agents    : {len(resources['agents'])}")
+    print(f"   workflows : {len(resources['workflows'])}\n")
+
+    for target_key, target in TARGETS.items():
+        print(f"📌 {target_key} — {target['description']}")
+
+        if target["link_type"] == "copilot":
+            instr = target["paths"]["instructions"]
+            status = "✓  exists" if instr.exists() else "✗  missing"
+            print(f"  {status} — {instr.name}")
+            settings = target["paths"]["settings"]
+            if settings.exists():
+                try:
+                    data = parse_jsonc(settings.read_text())
+                    locations = data.get("chat.instructionsFilesLocations", {})
+                    for r in RESOURCES:
+                        abs_p = str(AICTX_HOME / r)
+                        tilde_p = abs_p.replace(str(HOME), "~")
+                        registered = "✓" if abs_p in locations or tilde_p in locations else "✗"
+                        print(f"  {registered}  settings ← {r}")
+                except Exception:
+                    print("  ⚠  Could not read settings.json")
+            else:
+                print("  ✗  settings.json not found")
+
+        elif target["link_type"] == "folders":
+            base = target["base"]
+            for resource in RESOURCES:
+                status = link_status(base / resource, AICTX_HOME / resource)
+                print(f"  {status} — {resource}")
+
+        print()
+
+
+def cmd_uninstall(args):
+    global AICTX_HOME
+    AICTX_HOME = resolve_aictx_home()
+
+    confirm = input("\n⚠️  Remove all AI Context links? [y/N]: ").strip().lower()
+    if confirm != "y":
+        print("Aborting.")
+        return
+
+    print(f"\n🧠 AI Context — Uninstall\n")
+
+    for target_key, target in TARGETS.items():
+        print(f"🗑  {target_key}")
+
+        if target["link_type"] == "copilot":
+            instr = target["paths"]["instructions"]
+            if instr.exists():
+                instr.unlink()
+                print(f"  ✓  removed {instr.name}")
+            settings = target["paths"]["settings"]
+            if settings.exists():
+                try:
+                    data = parse_jsonc(settings.read_text())
+                    if "chat.instructionsFilesLocations" in data:
+                        del data["chat.instructionsFilesLocations"]
+                        settings.write_text(json.dumps(data, indent=2))
+                        print("  ✓  removed chat.instructionsFilesLocations from settings.json")
+                except Exception:
+                    print("  ⚠  Could not update settings.json")
+
+        elif target["link_type"] == "folders":
+            base = target["base"]
+            for resource in RESOURCES:
+                dst = base / resource
+                if dst.is_symlink():
+                    dst.unlink()
+                    print(f"  ✓  removed {resource}")
+
+        print()
+
+    print("✅ Uninstall complete.\n")
+
+
+def cmd_config(args):
+    global AICTX_HOME
+    AICTX_HOME = resolve_aictx_home()
+
+    print(f"\n🧠 AI Context — Config")
+    print(f"   AICTX_HOME : {AICTX_HOME}")
+    print(f"   Platform   : {platform.system()}")
+    print(f"   Python     : {sys.version.split()[0]}")
+    print(f"\n   Resources  : {', '.join(RESOURCES)}")
+    print(f"   Targets    : {', '.join(TARGETS.keys())}")
+    print(f"\n   Shell setup:")
+    print(f'     export AICTX_HOME="{AICTX_HOME}"')
+    print(f'     export PATH="$AICTX_HOME/scripts:$PATH"\n')
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        prog="aictx",
+        description="AI Context CLI — Manage AI resource links and sync ALWAYS.md",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  aictx sync              Regenerate ALWAYS.md from current resources
+  aictx install           Interactive install
+  aictx install --all     Install all targets without prompts
+  aictx install --force   Overwrite existing links
+  aictx status            Show current status
+  aictx uninstall         Remove all links
+  aictx config            Show configuration
+        """
+    )
+
+    sub = parser.add_subparsers(dest="command")
+    sub.add_parser("sync",      help="Scan resources and regenerate ALWAYS.md").set_defaults(func=cmd_sync)
+    sub.add_parser("status",    help="Show link status").set_defaults(func=cmd_status)
+    sub.add_parser("uninstall", help="Remove all managed links").set_defaults(func=cmd_uninstall)
+    sub.add_parser("config",    help="Show configuration").set_defaults(func=cmd_config)
+
+    p_install = sub.add_parser("install", help="Install resource links to AI tools")
+    p_install.add_argument("--all",   action="store_true", help="Install all targets and resources")
+    p_install.add_argument("--force", action="store_true", help="Overwrite existing links")
+    p_install.set_defaults(func=cmd_install)
+
+    args = parser.parse_args()
+    if not args.command:
+        parser.print_help()
+        return
+
+    args.func(args)
+
+
+if __name__ == "__main__":
+    main()
