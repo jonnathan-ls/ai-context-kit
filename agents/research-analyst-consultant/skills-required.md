@@ -62,7 +62,7 @@ As analysis requests accumulate:
 ## Skill Files Location
 
 ```
-/home/jonnathan/.ai-context/skills/research-analysis-framework/
+./.ai-context/skills/research-analysis-framework/
 ├── SKILL.md                         ← Main skill definition
 ├── source-evaluation-hierarchy.md   ← Source credibility tiers
 ├── viability-assessment-framework.md ← 6-dimension scoring

@@ -1,0 +1,39 @@
+{
+  "skill_name": "skill-quality-auditor",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Audit all skills under ./.ai-context/skills and generate both JSON and HTML outputs. Exclude skill-quality-auditor from the scan.",
+      "expected_output": "A ranked quality report with per-skill scores, quality bands, evidence, and recommendations, plus a static HTML dashboard.",
+      "files": [],
+      "expectations": [
+        "The output JSON contains summary.total_skills and summary.by_band.",
+        "Every analyzed skill has total_score, quality_band, criteria, and recommendations fields.",
+        "At least one poor/fair/good classification appears in realistic repositories.",
+        "A static HTML dashboard file is generated and references the same JSON-derived data."
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Run the auditor against a subset of skills and return the top 5 highest quality skills and the poor-quality list.",
+      "expected_output": "A deterministic ranking plus a filtered list of poor-quality skills from the computed report.",
+      "files": [],
+      "expectations": [
+        "Skills are sorted by descending total_score.",
+        "Poor-quality list only includes skills with score below 60.",
+        "Top 5 list contains exactly 5 entries when at least 5 skills exist."
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Inspect output evidence quality for two random skills and verify that each criterion has non-empty evidence entries.",
+      "expected_output": "Evidence arrays are present and useful for interpretation across all criteria.",
+      "files": [],
+      "expectations": [
+        "Each criterion object includes score, max_score, status, and evidence.",
+        "Evidence arrays are not empty for scored criteria.",
+        "Critical issues are traceable back to at least one criterion status marked critical."
+      ]
+    }
+  ]
+}
