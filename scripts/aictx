@@ -178,13 +178,13 @@ def build_always_md(aictx_home: Path, resources: dict) -> str:
     workflow_ref = ", ".join("`" + w["name"] + "`" for w in resources["workflows"]) or "(none)"
 
     rules_index = "".join(
-        "- **" + r["name"] + "** → `~/.ai-context/rules/" + r["file"] + "`"
+        "- **" + r["name"] + "** → `./.ai-context/rules/" + r["file"] + "`"
         + (" — " + r["description"] if r["description"] else "")
         + "\n"
         for r in resources["rules"]
     ) or "> (no additional rule files found)\n"
 
-    home_str     = str(aictx_home)
+    home_str     = "./.ai-context"
     now_str      = now
     return (
         "---\n"

@@ -1,0 +1,35 @@
+{
+  "meta": {
+    "context_root": ".",
+    "generated_at": "2026-03-26T03:31:32.688860+00:00",
+    "scanner_version": "2.0.0"
+  },
+  "summary": {
+    "artifacts_scanned": 1,
+    "artifacts_flagged": 0,
+    "total_findings": 0,
+    "by_severity": {
+      "critical": 0,
+      "high": 0,
+      "medium": 0,
+      "low": 0
+    },
+    "by_artifact_type": {
+      "skill": 1
+    }
+  },
+  "artifacts": [
+    {
+      "artifact_id": "skill:always-process",
+      "artifact_type": "skill",
+      "artifact_path": "skills/always-process",
+      "status": "clean",
+      "risk_score": 0,
+      "findings": [],
+      "quarantine_action": {
+        "executed": false,
+        "target": null
+      }
+    }
+  ]
+}

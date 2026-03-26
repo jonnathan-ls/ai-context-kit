@@ -1,0 +1,52 @@
+{
+  "meta": {
+    "context_root": ".ai-context",
+    "generated_at": "2026-03-26T03:49:03.095484+00:00",
+    "scanner_version": "2.0.0"
+  },
+  "summary": {
+    "artifacts_scanned": 1,
+    "artifacts_flagged": 1,
+    "total_findings": 2,
+    "by_severity": {
+      "critical": 0,
+      "high": 2,
+      "medium": 0,
+      "low": 0
+    },
+    "by_artifact_type": {
+      "skill": 1
+    }
+  },
+  "artifacts": [
+    {
+      "artifact_id": "skill:always-process",
+      "artifact_type": "skill",
+      "artifact_path": "skills/always-process",
+      "status": "flagged",
+      "risk_score": 40,
+      "findings": [
+        {
+          "severity": "high",
+          "category": "code-injection",
+          "file": "skills/always-process/skill.md",
+          "line": 3,
+          "match": "```bash",
+          "evidence": "Context-aware detection: category=code-injection, actions=1, imperatives=0, intent=1, defensive=0, guardrails=0."
+        },
+        {
+          "severity": "high",
+          "category": "malicious-behavior",
+          "file": "skills/always-process/skill.md",
+          "line": 3,
+          "match": "```bash",
+          "evidence": "Context-aware detection: category=malicious-behavior, actions=1, imperatives=0, intent=1, defensive=0, guardrails=0."
+        }
+      ],
+      "quarantine_action": {
+        "executed": false,
+        "target": null
+      }
+    }
+  ]
+}

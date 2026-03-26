@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# scan-context-security
+# Wrapper script to execute context security scanner with sensible defaults
+# Usage: ./scan-context-security [--full] [--enforce-quarantine] [--files file1 file2 ...]
+
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SCANNER="${SCRIPT_DIR}/skills/context-security-guardian/scripts/scan_aicontext_security.py"
+REPORTS_DIR="${SCRIPT_DIR}/skills/context-security-guardian/reports"
+
+# Default to analyzing only current prompt context files
+FULL_SCAN=false
+ENFORCE_QUARANTINE=false
+ANALYZE_FILES=()
+
+# Parse arguments
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --full)
+      FULL_SCAN=true
+      shift
+      ;;
+    --enforce-quarantine)
+      ENFORCE_QUARANTINE=true
+      shift
+      ;;
+    --files)
+      shift
+      while [[ $# -gt 0 ]] && [[ ! "$1" =~ ^-- ]]; do
+        # Normalize path: remove leading .ai-context/ if present
+        filepath="${1#.ai-context/}"
+        filepath="${filepath#./}"
+        ANALYZE_FILES+=("$filepath")
+        shift
+      done
+      ;;
+    *)
+      echo "Unknown option: $1"
+      echo "Usage: $0 [--full] [--enforce-quarantine] [--files file1 file2 ...]"
+      exit 1
+      ;;
+  esac
+done
+
+# Build command
+mkdir -p "$REPORTS_DIR"
+
+CMD="python3 \"$SCANNER\" --context-root \"$SCRIPT_DIR\" --output-json \"$REPORTS_DIR/context-security-report.json\" --output-md \"$REPORTS_DIR/context-security-report.md\" --exclude-path \"$REPORTS_DIR\""
+
+if [ "$ENFORCE_QUARANTINE" = true ]; then
+  CMD="$CMD --enforce-quarantine"
+fi
+
+if [ ${#ANALYZE_FILES[@]} -gt 0 ]; then
+  for file in "${ANALYZE_FILES[@]}"; do
+    CMD="$CMD --analyze-files \"$file\""
+  done
+fi
+
+eval "$CMD"

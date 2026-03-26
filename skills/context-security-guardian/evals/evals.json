@@ -1,0 +1,37 @@
+{
+  "skill_name": "context-security-guardian",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Scan all files in ./.ai-context for malicious or high-risk instructions and generate JSON and markdown reports.",
+      "expected_output": "A complete security report with severity breakdown, findings by artifact type, and explicit clean/flagged status.",
+      "files": [],
+      "expectations": [
+        "The JSON output includes summary.by_severity.",
+        "Each flagged artifact includes at least one finding with file and line.",
+        "Categories only use the allowed taxonomy."
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Run the scan with quarantine enforcement and remove vulnerable artifacts from active usage.",
+      "expected_output": "Vulnerable artifacts are moved to ./.ai-context/quarantine preserving structure and recorded in blocked-artifacts.json.",
+      "files": [],
+      "expectations": [
+        "Artifacts meeting quarantine criteria are marked status=quarantined.",
+        "blocked-artifacts.json is updated with timestamp and reason.",
+        "Clean artifacts remain in place under ./.ai-context."
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "For one flagged artifact, verify that the finding evidence is specific enough for remediation.",
+      "expected_output": "Findings include clear evidence with exact file and line, and actionable risk category.",
+      "files": [],
+      "expectations": [
+        "Every finding includes file, line, severity, category, and evidence.",
+        "At least one recommendation path is present in markdown summary."
+      ]
+    }
+  ]
+}
