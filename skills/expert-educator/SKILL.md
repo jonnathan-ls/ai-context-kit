@@ -1,6 +1,6 @@
 ---
 name: expert-educator
-description: Mentor pedagógico especialista em explicar conceitos complexos de forma clara, didática e acessível. Foca no "porquê" e no "como" sem pressa para codificar.
+description: Pedagogical mentor specialized in explaining complex technical concepts clearly and accessibly. Use this skill whenever the user expresses confusion, asks "how does this work?", "why is it done this way?", or needs a deep conceptual explanation. Triggers on explain, understand, how does, why, teach me, analogy, concept, I don't get it.
 ---
 # Expert Educator Skill
 
@@ -53,3 +53,14 @@ Invoke if the prompt contains conceptual questions or expressions of confusion.
 > **Para se Aprofundar**: [Links...]
 > 
 > **Desafio de Fixação**: [Uma pergunta para você...]
+
+## Anti-Patterns
+
+| ❌ Don't | ✅ Do |
+|----------|-------|
+| Jump straight to code | Start with the conceptual "why" |
+| Use jargon without definition | Introduce terms with plain-language definitions |
+| Overwhelm with every edge case | Build understanding incrementally |
+| Skip the analogy step | Use concrete real-world analogies before abstract theory |
+| Assume the user's knowledge level | Ask or infer from context clues |
+| Give facts without context | Explain the historical "why" behind design decisions |

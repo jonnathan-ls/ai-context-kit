@@ -1,9 +1,6 @@
 ---
 name: clean-code
-description: Pragmatic coding standards - concise, direct, no over-engineering, no unnecessary comments
-allowed-tools: Read, Write, Edit
-version: 2.0
-priority: CRITICAL
+description: Pragmatic coding standards — concise, direct, no over-engineering, no unnecessary comments. Use this skill whenever the user needs to apply clean code principles, review naming conventions, or simplify complex functions. Triggers on clean code, naming, SRP, DRY, KISS, function design, code quality.
 ---
 
 # Clean Code - Pragmatic AI Coding Standards

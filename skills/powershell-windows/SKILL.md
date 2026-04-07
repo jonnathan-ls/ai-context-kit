@@ -1,7 +1,6 @@
 ---
 name: powershell-windows
-description: PowerShell Windows patterns. Critical pitfalls, operator syntax, error handling.
-allowed-tools: Read, Write, Edit, Glob, Grep, Bash
+description: PowerShell Windows patterns. Critical pitfalls, operator syntax, error handling. Use this skill whenever the user is writing or debugging PowerShell scripts, automating Windows tasks, or handling Windows-specific scripting patterns. Triggers on PowerShell, .ps1, Windows scripting, cmdlet, Get-Item, Set-StrictMode.
 ---
 
 # PowerShell Windows Patterns
@@ -161,6 +160,19 @@ catch {
     exit 1
 }
 ```
+
+---
+
+## Anti-Patterns
+
+| ❌ Don't | ✅ Do |
+|----------|-------|
+| Use Unicode/emoji in scripts | Use ASCII-only status indicators |
+| Use logical operators without parentheses around cmdlets | Wrap each cmdlet call in `()` before using `-and`/`-or` |
+| Access properties without null check | Check `$var` before accessing `$var.Property` |
+| Use `ConvertTo-Json` without `-Depth` | Always specify `-Depth 10` for nested objects |
+| Use `Find-Replace` for renaming | Use IDE-level refactoring tools |
+| Write monolithic scripts | Break into functions with single responsibility |
 
 ---
 

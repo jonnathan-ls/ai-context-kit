@@ -1,7 +1,6 @@
 ---
 name: code-review-checklist
-description: Code review guidelines covering code quality, security, and best practices.
-allowed-tools: Read, Glob, Grep
+description: Code review specialist. Use this skill whenever the user asks to review code, check a pull request, or audit a file for quality and security. Triggers on "review this code", "check this PR", "code review", "review my function", "is this code good", "audit this file", "code quality check".
 ---
 
 # Code Review Checklist

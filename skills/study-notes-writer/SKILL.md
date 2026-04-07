@@ -1,96 +1,110 @@
 ---
 name: study-notes-writer
-description: Gerador proativo de notas de estudo em Markdown. Ao entender um conceito durante uma interação educacional, converte o conhecimento em anotações imperativas, estruturadas e persistentes dentro de uma pasta `studies/` do projeto atual, organizada por domínio de tópico.
-tag: meta
+description: Proactive study notes generator. Use this skill whenever a technical concept has been explained and understood in a learning or educational interaction. Triggers on "entendi", "faz sentido", explicit study note requests, or when expert-educator completes an explanation. Converts knowledge established in chat into structured, persistent Markdown notes inside a studies/ directory, organized by domain and numbered sequentially.
 ---
-# Study Notes Writer Skill
 
-Use esta skill **sempre que** um bloco de conhecimento sólido for estabelecido durante uma sessão de aprendizado ou explicação técnica — especialmente ao usar a skill `expert-educator`. Atua como o "Escriba" do aluno: transforma a explicação dada em notas de estudo pessoais e consultáveis.
+# Study Notes Writer
 
-## Role & Context (Contexto)
-Você atua como o **Escriba Técnico do Aluno**. Sua função é garantir que nenhum conceito ensinado no chat se perca. Ao invés de explicações na primeira pessoa do professor, você gera anotações concisas na **voz ativa do aluno** — como se o próprio aluno estivesse escrevendo no seu caderno de estudos.
+Proactive scribe for learning sessions. When a concept is solidified in chat, converts it into concise, imperative, student-voice notes — not professor summaries.
 
-## Objective (Objetivo)
-Sempre que um bloco conceitual for consolidado na conversa, você deve:
+## When to Activate
 
-1. **Detectar:** Identificar quando um conceito técnico foi suficientemente explicado e compreendido pelo aluno.
-2. **Estruturar:** Organizar o conhecimento em formato imperativo e de primeira pessoa (como anotações reais de um caderno).
-3. **Persistir:** Criar ou atualizar o arquivo `.md` correspondente na pasta `studies/` do projeto atual.
-4. **Numerar:** Seguir a convenção de nomenclatura sequencial: `01_nome-do-topico.md`, `02_nome-do-topico.md` etc.
+Activate proactively when any of these signals appear:
 
-## Gatilhos de Ativação (Quando criar uma nota?)
-Ative esta skill proativamente quando:
-- A `expert-educator` conclui uma explicação de um conceito.
-- O usuário demonstra compreensão com frases como "entendi", "faz sentido", "legal".
-- Um bloco de troca de perguntas e respostas sobre um tópico específico chega ao fim.
-- O usuário pede explicitamente uma nota de estudo ou documentação.
+| Signal | Example |
+|--------|---------|
+| Comprehension confirmed | "entendi", "faz sentido", "got it", "makes sense" |
+| Explanation concluded | `expert-educator` finishes a Feynman explanation |
+| Q&A block ends | A topic-specific back-and-forth reaches a conclusion |
+| Explicit request | "salva isso como nota", "create a study note" |
 
-## Padrão de Conteúdo do Arquivo (Regras de Escrita)
+Do NOT activate on every message. Only when a knowledge block is genuinely consolidated.
 
-### Voz e Tom
-- **IMPERATIVO e PESSOAL**: Escreva como se o aluno estivesse anotando para si mesmo.
-  - ✅ `- O `poll()` serve para monitorar múltiplos fds simultaneamente.`
-  - ❌ `- O `poll()` é uma syscall que pode ser usada para...`
-- **SEM ENROLAÇÃO**: Sem histórico, sem contexto desnecessário. Só o que importa.
-- **DENSIDADE MÁXIMA**: Cada linha deve carregar informação, não introdução.
+## Execution Protocol
 
-### Estrutura Padrão do Arquivo `.md`
-```markdown
-# [Nome do Tópico] — Notas de Estudo
+1. **Announce** — Tell the user a study note is about to be created/updated.
+2. **Search** — Use `Glob` or `Read` to list existing directories and files under `studies/`.
+3. **Decide** — Place the note in an existing domain folder or create a new one.
+4. **Write** — Create or update the `.md` file with the content standard below.
+5. **Confirm** — Report the file path to the user.
 
-## O que é / Para que serve
-- [Frase imperativa e direta]
-- [Frase imperativa e direta]
+## Note Content Standard
 
-## Como Funciona (Mecanismo)
-- [Passo ou princípio 1]
-- [Passo ou princípio 2]
+Write in the **student's active voice** — as if the student is writing in their own notebook. Not lecture transcripts.
 
-## Regras / Restrições Críticas
-- **[Nome da Regra]:** [Consequência se violada]
-
-## Armadilhas Comuns (Não Esquecer)
-- [Pegadinha 1 direta ao ponto]
-
-## Próximo Passo de Aprendizado
-- Estudar: [Próximo conceito relacionado]
+```
+✅  "poll() monitors multiple file descriptors simultaneously."
+❌  "poll() is a syscall that the professor explained can be used to..."
 ```
 
-## Convenção de Arquivos e Pastas
+### Standard File Structure
 
-### Estrutura de Pastas por Domínio (Preferida)
-Antes de criar um arquivo, **avalie se o tópico pertence a um domínio existente ou novo**. A estrutura recomendada é:
+```markdown
+# [Topic Name] — Study Notes
+
+## What It Is / What It Does
+- [Direct, imperative statement]
+- [Direct, imperative statement]
+
+## How It Works
+- [Step or principle 1]
+- [Step or principle 2]
+
+## Critical Rules / Constraints
+- **[Rule Name]:** [Consequence if violated]
+
+## Common Traps (Do Not Forget)
+- [Pitfall 1 — stated directly]
+- [Pitfall 2 — stated directly]
+
+## Next Learning Step
+- Study next: [Related concept to explore]
+```
+
+## File and Folder Conventions
+
+### Directory Structure
 
 ```
 studies/
 ├── 01-http-protocol/
-│   ├── 01-visao-geral.md
-│   └── 02-metodos-e-status.md
+│   ├── 01-overview.md
+│   └── 02-methods-and-status.md
 ├── 02-sockets/
-│   └── 01-abertura-de-portas.md
-└── 03-cgi/
-    └── 01-como-funciona.md
+│   └── 01-port-binding.md
+└── 03-databases/
+    ├── 01-acid-properties.md
+    └── 02-indexes.md
 ```
 
-- **Pasta de domínio:** `NN-nome-do-dominio/` — numerada para preservar a trilha de aprendizado entre temas.
-- **Arquivo dentro da pasta:** `NN-nome-do-arquivo.md` — numerado sequencialmente dentro do domínio.
-- **Nomenclatura:** Sempre `kebab-case` com hífens, nunca underscores.
+### Naming Rules
 
-### Protocolo de Decisão de Pasta
-1. Use `find_by_name` em `studies/` para listar as pastas de domínio existentes.
-2. Se o tópico se encaixa em uma pasta existente → adicione o arquivo lá, no próximo número disponível.
-3. Se o tópico é um domínio novo → crie uma nova pasta de domínio numerada.
-4. **Dica:** prefira pastas com 3–8 arquivos. Se passar de 8, sugira subdivisão ao usuário.
+| Element | Convention |
+|---------|-----------|
+| Domain folder | `NN-domain-name/` — kebab-case, numbered to preserve learning order |
+| File inside folder | `NN-topic-name.md` — numbered sequentially within the domain |
+| Case style | Always kebab-case with hyphens — never underscores |
 
-- **Não duplicar:** Antes de criar, verificar se um arquivo sobre o mesmo tópico já existe com `find_by_name`. Se existir, atualizar em vez de criar.
+### Folder Decision Protocol
 
-## Protocolo de Execução
-1. Ao detectar um gatilho, **anuncie ao usuário** que vai gerar/atualizar uma nota de estudo.
-2. Use `find_by_name` na pasta `studies/` para verificar arquivos existentes e o próximo número sequencial disponível.
-3. Crie ou atualize o arquivo com `write_to_file` ou `replace_file_content`.
-4. Informe o caminho do arquivo criado/atualizado ao usuário.
+1. Search `studies/` for existing domain folders.
+2. If the topic fits an existing domain → add file at next available number.
+3. If the topic is a new domain → create a new numbered domain folder.
+4. If a file on the same topic already exists → update it instead of creating a duplicate.
+5. Keep folders at 3-8 files. If over 8, suggest a subdivision to the user.
 
-## Integração com Outras Skills
-- **`expert-educator`**: Parceira principal. Após uma explicação Feynman, o Escriba registra.
-- **`knowledge-integrator`**: Complementar. O Integrador atualiza DOCS do projeto; o Escriba gera NOTES do aluno.
-- **`skill-extractor`**: Se um padrão de ensino novo surgir repetidamente, sugerir nova skill.
+## Integration with Other Skills
+
+| Skill | Relationship |
+|-------|-------------|
+| `expert-educator` | Primary partner — notes follow after each Feynman explanation |
+| `knowledge-integrator` | Complementary — `knowledge-integrator` updates project docs; this skill generates learner notes |
+| `brainstorming` | If a brainstorm crystallizes a concept, notes can capture it |
+
+## Anti-Patterns
+
+- **Do not** write in the professor's voice. Notes belong to the student.
+- **Do not** copy the chat verbatim. Distill to essential, actionable statements.
+- **Do not** create duplicate notes. Always check if the topic file exists first.
+- **Do not** activate on every message. Only when a knowledge block is genuinely complete.
+- **Do not** skip the domain folder structure. Flat `studies/` directories become unnavigable.

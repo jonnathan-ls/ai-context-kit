@@ -1,7 +1,6 @@
 ---
 name: mcp-builder
-description: MCP (Model Context Protocol) server building principles. Tool design, resource patterns, best practices.
-allowed-tools: Read, Write, Edit, Glob, Grep
+description: MCP (Model Context Protocol) server building principles. Tool design, resource patterns, best practices. Use this skill whenever the user is building an MCP server, designing tools or resources for AI integration, or configuring Claude Desktop connections. Triggers on MCP, Model Context Protocol, tool design, MCP server, stdio transport, SSE.
 ---
 
 # MCP Builder
@@ -170,6 +169,19 @@ my-mcp-server/
 - [ ] Input validation
 - [ ] Environment-based configuration
 - [ ] Logging for debugging
+
+---
+
+## Anti-Patterns
+
+| ❌ Don't | ✅ Do |
+|----------|-------|
+| Create multi-purpose tools | One tool, one action |
+| Omit input schema descriptions | Describe every parameter clearly |
+| Return unstructured text | Return structured JSON |
+| Expose sensitive errors to AI | Log details server-side, return generic message |
+| Hardcode API keys | Use environment variables |
+| Skip input validation | Validate and sanitize all tool inputs before use |
 
 ---
 

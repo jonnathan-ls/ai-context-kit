@@ -1,7 +1,6 @@
 ---
 name: i18n-localization
-description: Internationalization and localization patterns. Detecting hardcoded strings, managing translations, locale files, RTL support.
-allowed-tools: Read, Glob, Grep
+description: Internationalization and localization patterns. Detecting hardcoded strings, managing translations, locale files, RTL support. Use this skill whenever the user needs to add multi-language support, detect untranslated strings, or configure locale-aware formatting. Triggers on i18n, l10n, translation, locale, RTL, hardcoded strings, react-i18next, next-intl.
 ---
 
 # i18n & Localization
@@ -152,3 +151,16 @@ Before shipping:
 | Script | Purpose | Command |
 |--------|---------|---------|
 | `scripts/i18n_checker.py` | Detect hardcoded strings & missing translations | `python scripts/i18n_checker.py <project_path>` |
+
+---
+
+## Anti-Patterns
+
+| ❌ Don't | ✅ Do |
+|----------|-------|
+| Hardcode UI strings in components | Use translation keys everywhere |
+| Concatenate translated fragments | Use ICU message format with interpolation |
+| Add i18n as an afterthought | Plan locale support from day one |
+| Assume fixed text direction | Support RTL with CSS logical properties |
+| Use array index as locale key | Use meaningful namespaced keys (e.g., `auth.login.button`) |
+| Skip fallback language config | Always define a default locale fallback |

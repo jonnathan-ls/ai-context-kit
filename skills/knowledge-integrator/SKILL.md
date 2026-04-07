@@ -1,44 +1,101 @@
 ---
 name: knowledge-integrator
-description: Automatic retroactive feeder. Identifies newly generated context in chat and suggests exact updates to the project's master documentation files without altering them directly.
-tag: meta
+description: Documentation synchronization specialist. Use this skill whenever a structural decision, architectural change, new persona, business pivot, or important rule has been established in the chat and the project's base documentation files may now be outdated. Triggers on "update the docs", "we decided to change", "new rule going forward", "add this to the architecture", "our persona changed", "keep the docs in sync". Identifies impacted files, generates a precise diff proposal, and waits for explicit user approval before applying any changes.
 ---
-# Knowledge Integrator Skill (O Retro-Alimentador)
 
-Use esta skill para garantir que nenhuma decisão arquitetural, descoberta de mercado ou pivô de negócios se perca no histórico do chat. O Integrador cruza o conhecimento novo com a documentação fundacional existente do projeto atual.
+# Knowledge Integrator
 
-## Role & Context (Contexto)
-Você atua como o **Guardião do Conhecimento (Knowledge Integrator)** do workspace. Startups e projetos de software mudam rápido. Quando o usuário toma uma decisão conceitual de alto nível no chat (ex: "vamos mudar a estratégia de banco de dados", "temos uma nova persona", ou "adote esta regra de UI"), os arquivos base do projeto ficam defasados. Sua função é garantir que o "Cérebro" Documental (seja ele qual for o nome dos arquivos no projeto atual) seja retroalimentado de forma agnóstica.
+Proactive documentation synchronization guardian. Detects when chat decisions diverge from the project's source-of-truth files and surfaces exact update proposals — never modifying files without explicit approval.
 
-## Objective (Objetivo)
-Sempre que o usuário processar uma nova ideia estrutural, código base, ou pequisa profunda no chat, você deve:
-1. **Mapear:** Identificar qual tipo de documentação base do projeto atual foi impactada (Ex: Arquivos de Arquitetura, Regras de Negócio, Roadmaps, Readmes, ou Guidelines de Design).
-2. **Localizar:** Usar suas ferramentas (como `grep_search` ou `list_dir`) para encontrar os nomes reais desses arquivos afetados no diretório atual de documentação (ex: pastas `/docs`, `/architecture`, ou arquivos raiz `.md`).
-3. **Sugerir:** Mostrar ao usuário de forma clara as atualizações que devem ser feitas para manter a 'Single Source of Truth' viva.
-4. **Proteger:** NUNCA alterar os arquivos diretamente por conta própria. Sempre fornecer um relatório de impacto ("Diff sugerido") para o usuário aprovar e orquestrar.
+## When to Use
 
-## Style & Tone
-Analítico, preventivo, organizado e estritamente focado em consistência de dados. Fale como um arquiteto técnico/DBA garantindo integridade de estado.
+- An architectural decision was made in chat (e.g., "we're switching to PostgreSQL")
+- A new business rule was established (e.g., "payments are now handled by Stripe")
+- A persona or target audience changed
+- A UI/UX guideline was defined or revised
+- A significant convention was agreed upon that isn't yet in the docs
+- The user says "remember this going forward" or "add this to our docs"
 
-## Response Format
-Sempre que ativado (ou quando decidir proativamente que o chat divergiu da documentação base), você deve interromper brevemente e responder neste formato:
+## Execution Protocol
 
-### 🔄 Alerta de Integração de Conhecimento
+Follow these steps in order every time:
 
-**Nova Informação Detectada/Decidida:**
-[Breve resumo da regra/pesquisa discutida agor no log do chat]
+1. **Identify** — Determine what structural knowledge was just established in the chat.
+2. **Search** — Use `Read`, `Glob`, or `Grep` to locate the actual documentation files affected (check `/docs`, `/architecture`, root `.md` files, `CLAUDE.md`, `README.md`, etc.).
+3. **Diff** — For each impacted file, produce a precise before/after proposal showing exactly what to add, change, or remove.
+4. **Report** — Output the Knowledge Integration Alert (see format below).
+5. **Wait** — Do NOT modify any file until the user explicitly approves.
+6. **Apply** — After approval, execute the patch using `Edit` or `Write`.
 
-**Documentação Atualmente Defasada (Impacto):**
-- `[caminho/do/arquivo_local.md]`: [Explicação exata do que ficou antigo lá dentro]
-- `[caminho/do/outro_arquivo_local.md]`: [Por que precisa de revisão]
+## Knowledge Integration Alert Format
 
-**Proposta de Sincronização (Aguardando Aprovação):**
-*No arquivo X, sugiro que modifiquemos a Seção M para refletir o novo conceito Y. No arquivo Z, a regra velha deve ser deletada.*
+```
+### Knowledge Integration Alert
 
-*(Diga "Aprovado" ou faça ajustes, e eu mesmo executarei o patch no código).*
+**Established Decision:**
+[One-sentence summary of the new rule, decision, or discovery]
 
-## Protocolo de Execução
-1. Compreenda qual tipo de projeto você está auditando no momento.
-2. Identifique os arquivos core através de busca semântica em pastas de docs.
-3. Imprima o **Alerta de Integração**.
-4. Aguarde ordens táticas do usuário.
+**Outdated Documentation:**
+- `path/to/file.md` — [What is now stale and why]
+- `path/to/other.md` — [What section needs revision]
+
+**Proposed Updates (awaiting approval):**
+
+File: `path/to/file.md` — Section: "Architecture"
+- REMOVE: "We use MongoDB for all data storage."
+- ADD: "Primary database is PostgreSQL (migrated Q2 2026). MongoDB retained for legacy event logs only."
+
+---
+Reply "Approved" or adjust the proposals above, and I will apply the changes.
+```
+
+## Detection Triggers
+
+Proactively activate this skill when the user says or implies:
+
+| Signal | Example |
+|--------|---------|
+| Decision language | "We decided to...", "Going forward we will..." |
+| Rule establishment | "From now on, always...", "The rule is..." |
+| Change announcement | "We're switching to...", "We dropped X in favor of Y" |
+| Explicit doc request | "Add this to the docs", "Update the README" |
+| Persona update | "Our new target user is...", "The audience changed to..." |
+
+## File Discovery Strategy
+
+When searching for impacted files:
+
+```
+1. Check root: README.md, CLAUDE.md, .ai-context/
+2. Check /docs, /architecture, /specs directories
+3. Grep for the keyword or concept being changed
+4. List all .md files at the project root
+```
+
+Example search pattern:
+```bash
+grep -r "MongoDB" docs/ README.md --include="*.md" -l
+```
+
+## Scope Rules
+
+| Allowed | Not Allowed |
+|---------|-------------|
+| Propose exact text changes | Modify files without approval |
+| Read any documentation file | Invent documentation that doesn't exist |
+| Suggest new sections or files | Create files without approval |
+| Report what is stale and why | Act on low-confidence signals without asking |
+
+## Integration with Other Skills
+
+- **`study-notes-writer`**: Complementary — `study-notes-writer` generates learner notes; `knowledge-integrator` updates project documentation.
+- **`expert-educator`**: After a technical explanation, check if project docs need updating.
+- **`brainstorming`**: After decisions solidify from a brainstorm session, surface impacted docs.
+
+## Anti-Patterns
+
+- **Do not** modify files silently. Every change requires an explicit approval signal from the user.
+- **Do not** activate on every message. Only trigger when a genuine structural decision was made.
+- **Do not** guess file paths. Search and verify they exist before including them in the report.
+- **Do not** propose stylistic or cosmetic changes. Only sync structural, factual, or rule-based knowledge.
+- **Do not** generate fictional documentation. Proposals must be grounded in what was actually decided in the conversation.

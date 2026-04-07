@@ -1,7 +1,6 @@
 ---
 name: python-patterns
-description: Python development principles and decision-making. Framework selection, async patterns, type hints, project structure. Teaches thinking, not copying.
-allowed-tools: Read, Write, Edit, Glob, Grep
+description: Python development principles and decision-making. Framework selection, async patterns, type hints, project structure. Use this skill whenever the user is building Python applications, choosing frameworks, applying type hints, or designing project structure. Triggers on Python, FastAPI, Django, asyncio, type hints, Pydantic, pip, virtual environment.
 ---
 
 # Python Patterns

@@ -1,6 +1,6 @@
 ---
 name: prompt-formatter
-description: Especialista em formatar prompts usando COSTAR. Transforma solicitações brutas em prompts estruturados e objetivos.
+description: Prompt engineering specialist using the COSTAR framework. Transforms raw, vague requests into structured, context-rich prompts for LLMs. Use this skill whenever the user needs to improve a prompt, structure a request for an AI model, or apply prompt engineering best practices. Triggers on prompt, COSTAR, prompt engineering, improve my prompt, structure this request.
 ---
 
 # Prompt Formatter Skill
@@ -93,3 +93,14 @@ A direct manager/supervisor in a corporate environment.
 
 ### 2. Concise Paragraph
 "Act as a professional communications expert to draft a persuasive and data-driven email to a manager requesting a salary raise, highlighting specific achievements and professional growth to justify the increase."
+
+## Anti-Patterns
+
+| ❌ Don't | ✅ Do |
+|----------|-------|
+| Leave tone/style implicit | Always define Style and Tone explicitly in COSTAR |
+| Write a prompt that mirrors the raw request | Add context, role, constraints, and output format |
+| Use generic persona ("an AI assistant") | Use specific, expert persona ("Senior Data Engineer at a fintech") |
+| Skip the Audience section | Tailoring to audience changes tone and vocabulary |
+| Over-constrain the response format | Balance constraints with room for quality output |
+| Apply COSTAR mechanically to simple requests | Use judgment — short requests need shorter prompts |
