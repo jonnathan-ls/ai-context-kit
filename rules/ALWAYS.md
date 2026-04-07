@@ -107,6 +107,7 @@ Before any action, classify silently:
 - **code-standards** → `./.ai-context/rules/code-standards.md` — Clean Code standards, file awareness, task complexity tiers
 - **response-discipline** → `./.ai-context/rules/response-discipline.md` — Enforces strict response boundaries — no unsolicited code, no file changes without approval, no scope creep, no token waste. Every response must be surgically scoped to the user's exact request.
 - **socratic-gate** → `./.ai-context/rules/socratic-gate.md` — Clarification gate — ask before assuming on ambiguous or destructive requests
+- **language-policy** → `./.ai-context/rules/language-policy.md` — Chat responses in Portuguese; all files created/updated on disk must be in English
 
 ---
 
