@@ -6,9 +6,10 @@ import os
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
-RUBRIC = {
+# Fix 5: Tag-aware rubric — default weights for domain-specific skills
+DEFAULT_RUBRIC = {
     "metadata_frontmatter": 20,
     "trigger_description": 15,
     "instruction_clarity": 20,
@@ -18,22 +19,70 @@ RUBRIC = {
     "verifiability_evals": 10,
 }
 
+# Meta-skills legitimately skip evals and resource bundles;
+# their primary value is in triggering precision and clear instructions.
+META_RUBRIC = {
+    "metadata_frontmatter": 20,
+    "trigger_description": 25,  # +10: trigger accuracy is the core value of a meta-skill
+    "instruction_clarity": 20,
+    "actionability_reusability": 15,
+    "resource_consistency": 5,  # -5: meta-skills often have no bundled resources by design
+    "safety_non_surprise": 10,
+    "verifiability_evals": 5,   # -5: meta-skills are harder to unit-test
+}
 
-def parse_frontmatter(text: str) -> Tuple[Dict[str, str], bool]:
+RECOMMENDATION_TEMPLATES = {
+    "metadata_frontmatter": "Fix frontmatter: ensure `name`, kebab-case, and folder alignment",
+    "trigger_description": "Improve `description`: add explicit when-to-use trigger context and examples",
+    "instruction_clarity": "Add structure: numbered steps, checkboxes (`- [ ]`), headings, or tables",
+    "actionability_reusability": "Add reusable examples, code blocks, or output templates",
+    "resource_consistency": "Fix or remove broken references to scripts/, references/, or assets/",
+    "safety_non_surprise": "Add safety constraints: approval gates, guardrails, or policy notes",
+    "verifiability_evals": "Add evals/ directory with test cases and verification criteria",
+}
+
+
+# Fix 2: Improved frontmatter parser — handles block scalars (> and |) gracefully
+def parse_frontmatter(text: str) -> Tuple[Dict[str, str], bool, List[str]]:
+    """Returns (data, has_frontmatter, warnings)."""
+    warnings: List[str] = []
     if not text.startswith("---\n"):
-        return {}, False
+        return {}, False, warnings
     end_idx = text.find("\n---\n", 4)
     if end_idx == -1:
-        return {}, False
+        return {}, False, warnings
 
-    fm_block = text[4:end_idx].strip()
+    fm_block = text[4:end_idx]
     data: Dict[str, str] = {}
-    for line in fm_block.splitlines():
+    lines = fm_block.splitlines()
+    i = 0
+    while i < len(lines):
+        line = lines[i]
         if ":" not in line:
+            i += 1
             continue
         key, value = line.split(":", 1)
-        data[key.strip()] = value.strip()
-    return data, True
+        key = key.strip()
+        value = value.strip()
+
+        if value in (">", "|", ">-", "|-", ">+", "|+"):
+            warnings.append(
+                f"Field `{key}` uses a block scalar (`{value}`). "
+                "Use a single-line value for broader YAML compatibility."
+            )
+            continuation: List[str] = []
+            i += 1
+            while i < len(lines) and (
+                lines[i].startswith("  ") or lines[i].startswith("\t") or lines[i] == ""
+            ):
+                continuation.append(lines[i].strip())
+                i += 1
+            data[key] = " ".join(part for part in continuation if part)
+        else:
+            data[key] = value
+            i += 1
+
+    return data, True, warnings
 
 
 def kebab_case(value: str) -> bool:
@@ -72,13 +121,19 @@ class SkillResult:
     total_score: int
     max_score: int
     quality_band: str
+    skill_tag: str
     criteria: Dict[str, CriterionResult]
     critical_issues: List[str]
     recommendations: List[str]
 
 
-def score_metadata(folder_name: str, frontmatter: Dict[str, str], has_frontmatter: bool) -> CriterionResult:
-    max_score = RUBRIC["metadata_frontmatter"]
+def score_metadata(
+    folder_name: str,
+    frontmatter: Dict[str, str],
+    has_frontmatter: bool,
+    fm_warnings: List[str],
+    max_score: int,
+) -> CriterionResult:
     score = 0
     evidence = []
 
@@ -87,6 +142,11 @@ def score_metadata(folder_name: str, frontmatter: Dict[str, str], has_frontmatte
         evidence.append("Frontmatter block is present.")
     else:
         evidence.append("Missing or invalid frontmatter block.")
+
+    # Fix 2: surface YAML block-scalar warnings as evidence
+    for w in fm_warnings:
+        evidence.append(f"YAML warning: {w}")
+        score = max(0, score - 2)
 
     name = frontmatter.get("name", "")
     description = frontmatter.get("description", "")
@@ -115,11 +175,15 @@ def score_metadata(folder_name: str, frontmatter: Dict[str, str], has_frontmatte
     elif name:
         evidence.append("`name` appears misaligned with folder intent.")
 
-    return CriterionResult(score=min(score, max_score), max_score=max_score, status=status_for(score, max_score), evidence=evidence)
+    return CriterionResult(
+        score=min(max(score, 0), max_score),
+        max_score=max_score,
+        status=status_for(score, max_score),
+        evidence=evidence,
+    )
 
 
-def score_trigger_description(frontmatter: Dict[str, str]) -> CriterionResult:
-    max_score = RUBRIC["trigger_description"]
+def score_trigger_description(frontmatter: Dict[str, str], max_score: int) -> CriterionResult:
     score = 0
     evidence = []
 
@@ -132,28 +196,39 @@ def score_trigger_description(frontmatter: Dict[str, str]) -> CriterionResult:
     else:
         evidence.append("Description is missing.")
 
-    if any(token in desc_low for token in ["use when", "whenever", "when the user", "when to use"]):
+    if any(
+        token in desc_low
+        for token in ["use when", "whenever", "when the user", "when to use", "triggers on", "use this"]
+    ):
         score += 5
         evidence.append("Description includes trigger context.")
     else:
         evidence.append("Description lacks explicit trigger context.")
 
-    if len(description.split()) >= 10:
-        score += 5
-        evidence.append("Description has enough detail for reliable triggering.")
+    word_count = len(description.split())
+    if word_count >= 10:
+        score += min(5, max_score - score - 0)
+        evidence.append(f"Description has sufficient detail ({word_count} words).")
     elif description:
-        evidence.append("Description may be too short for reliable triggering.")
+        evidence.append(f"Description may be too short for reliable triggering ({word_count} words).")
 
-    return CriterionResult(score=min(score, max_score), max_score=max_score, status=status_for(score, max_score), evidence=evidence)
+    return CriterionResult(
+        score=min(score, max_score),
+        max_score=max_score,
+        status=status_for(score, max_score),
+        evidence=evidence,
+    )
 
 
-def score_instruction_clarity(body: str) -> CriterionResult:
-    max_score = RUBRIC["instruction_clarity"]
+# Fix 1: Structure detection now recognizes checklists, tables, and code blocks
+def score_instruction_clarity(body: str, max_score: int) -> CriterionResult:
     score = 0
     evidence = []
 
     headings = len(re.findall(r"^##+\s+", body, flags=re.MULTILINE))
     numbered_steps = len(re.findall(r"^\d+\.\s+", body, flags=re.MULTILINE))
+    checkboxes = len(re.findall(r"^[-*]\s+\[[ xX]\]", body, flags=re.MULTILINE))
+    table_lines = len(re.findall(r"^\|.+\|", body, flags=re.MULTILINE))
 
     if headings >= 3:
         score += 8
@@ -164,62 +239,100 @@ def score_instruction_clarity(body: str) -> CriterionResult:
     else:
         evidence.append("No section headings found.")
 
-    if numbered_steps >= 3:
+    # Step-like structures: numbered steps OR checklists OR tables each qualify
+    structure_items = numbered_steps + checkboxes + (1 if table_lines >= 2 else 0)
+    if structure_items >= 3:
         score += 8
-        evidence.append(f"Step-by-step sequence present ({numbered_steps} steps).")
-    elif numbered_steps > 0:
+        parts = []
+        if numbered_steps:
+            parts.append(f"{numbered_steps} numbered steps")
+        if checkboxes:
+            parts.append(f"{checkboxes} checkboxes")
+        if table_lines >= 2:
+            parts.append(f"{table_lines} table rows")
+        evidence.append(f"Step-by-step or checklist structure present ({', '.join(parts)}).")
+    elif structure_items > 0:
         score += 4
-        evidence.append("Partial step sequence found.")
+        evidence.append("Partial structure found (numbered steps, checkboxes, or table).")
     else:
-        evidence.append("No explicit step-by-step instructions found.")
+        evidence.append("No explicit step-by-step, checklist, or table structure found.")
 
     contradiction_markers = ["always", "never"]
     count_markers = sum(body.lower().count(m) for m in contradiction_markers)
     if count_markers <= 20:
         score += 4
-        evidence.append("Instruction tone appears controlled and mostly non-contradictory.")
+        evidence.append("Instruction tone appears controlled and non-contradictory.")
     else:
-        evidence.append("Potential over-constraint detected from repeated rigid directives.")
+        evidence.append(
+            f"Potential over-constraint: 'always'/'never' used {count_markers} times."
+        )
 
-    return CriterionResult(score=min(score, max_score), max_score=max_score, status=status_for(score, max_score), evidence=evidence)
+    return CriterionResult(
+        score=min(score, max_score),
+        max_score=max_score,
+        status=status_for(score, max_score),
+        evidence=evidence,
+    )
 
 
-def score_actionability(body: str) -> CriterionResult:
-    max_score = RUBRIC["actionability_reusability"]
+# Fix 1: Broader imperative verb list; tables and code blocks count as templates
+def score_actionability(body: str, max_score: int) -> CriterionResult:
     score = 0
     evidence = []
 
-    imperative_hits = len(re.findall(r"\b(use|run|create|read|write|check|validate|generate|save)\b", body.lower()))
-    has_examples = "example" in body.lower() or "```" in body
+    imperative_pattern = re.compile(
+        r"\b(use|run|create|read|write|check|validate|generate|save|add|define|apply|"
+        r"execute|output|perform|ensure|install|configure|return|extract|analyze|report|"
+        r"identify|select|build|deploy|load|parse|scan|send|list|call|open|close)\b",
+        re.IGNORECASE,
+    )
+    imperative_hits = len(imperative_pattern.findall(body))
+
+    code_blocks = body.count("```") // 2
+    table_lines = len(re.findall(r"^\|.+\|", body, flags=re.MULTILINE))
+    has_templates = "example" in body.lower() or code_blocks > 0 or table_lines >= 2
 
     if imperative_hits >= 15:
         score += 8
-        evidence.append("Instructions are operational and action-oriented.")
+        evidence.append(f"Instructions are operational and action-oriented ({imperative_hits} imperative hits).")
     elif imperative_hits >= 6:
         score += 5
-        evidence.append("Instructions have moderate actionability.")
+        evidence.append(f"Instructions have moderate actionability ({imperative_hits} imperative hits).")
     else:
-        evidence.append("Instructions are not sufficiently operational.")
+        evidence.append(f"Instructions are not sufficiently operational ({imperative_hits} imperative hits).")
 
-    if has_examples:
+    if has_templates:
         score += 7
-        evidence.append("Examples/templates are present for reuse.")
+        parts = []
+        if code_blocks:
+            parts.append(f"{code_blocks} code block(s)")
+        if table_lines >= 2:
+            parts.append(f"{table_lines} table rows")
+        if "example" in body.lower():
+            parts.append("examples section")
+        evidence.append(f"Reusable templates/examples present: {', '.join(parts)}.")
     else:
-        evidence.append("No clear reusable examples/templates found.")
+        evidence.append("No clear reusable examples, code blocks, or tables found.")
 
-    return CriterionResult(score=min(score, max_score), max_score=max_score, status=status_for(score, max_score), evidence=evidence)
+    return CriterionResult(
+        score=min(score, max_score),
+        max_score=max_score,
+        status=status_for(score, max_score),
+        evidence=evidence,
+    )
 
 
-def score_resource_consistency(skill_dir: Path, body: str) -> CriterionResult:
-    max_score = RUBRIC["resource_consistency"]
+def score_resource_consistency(skill_dir: Path, body: str, max_score: int) -> CriterionResult:
     score = 0
     evidence = []
 
-    resource_refs = re.findall(r"(?:`)?(scripts|references|assets)/([^`\s)]+)(?:`)?", body)
+    resource_refs = re.findall(r"(?:`)?(scripts|references|assets|docs|evals)/([^`\s)\"']+)(?:`)?", body)
     if not resource_refs:
         score = max_score
         evidence.append("No resource references detected; no broken references found.")
-        return CriterionResult(score=score, max_score=max_score, status=status_for(score, max_score), evidence=evidence)
+        return CriterionResult(
+            score=score, max_score=max_score, status=status_for(score, max_score), evidence=evidence
+        )
 
     missing = []
     for folder, rel_path in resource_refs:
@@ -229,16 +342,17 @@ def score_resource_consistency(skill_dir: Path, body: str) -> CriterionResult:
 
     if not missing:
         score = max_score
-        evidence.append("All referenced resources exist.")
+        evidence.append(f"All {len(resource_refs)} referenced resource(s) exist.")
     else:
-        score = max(0, max_score - min(10, len(missing) * 2))
+        score = max(0, max_score - min(max_score, len(missing) * 2))
         evidence.append(f"Missing resource references: {', '.join(missing[:8])}")
 
-    return CriterionResult(score=score, max_score=max_score, status=status_for(score, max_score), evidence=evidence)
+    return CriterionResult(
+        score=score, max_score=max_score, status=status_for(score, max_score), evidence=evidence
+    )
 
 
-def score_safety(body: str) -> CriterionResult:
-    max_score = RUBRIC["safety_non_surprise"]
+def score_safety(body: str, max_score: int) -> CriterionResult:
     score = 0
     evidence = []
 
@@ -252,22 +366,30 @@ def score_safety(body: str) -> CriterionResult:
         score += 7
         evidence.append("No obvious malicious/risky behavior guidance detected.")
 
-    if any(token in body.lower() for token in ["approval", "guardrail", "safety", "policy", "do not"]):
+    if any(
+        token in body.lower()
+        for token in ["approval", "guardrail", "safety", "policy", "do not", "anti-pattern", "never do", "avoid"]
+    ):
         score += 3
-        evidence.append("Includes some safety boundaries or constraints.")
+        evidence.append("Includes safety boundaries or anti-pattern constraints.")
     else:
-        evidence.append("No explicit safety boundaries detected.")
+        evidence.append("No explicit safety boundaries or anti-pattern section detected.")
 
-    return CriterionResult(score=min(score, max_score), max_score=max_score, status=status_for(score, max_score), evidence=evidence)
+    return CriterionResult(
+        score=min(score, max_score), max_score=max_score, status=status_for(score, max_score), evidence=evidence
+    )
 
 
-def score_verifiability(body: str, skill_dir: Path) -> CriterionResult:
-    max_score = RUBRIC["verifiability_evals"]
+def score_verifiability(body: str, skill_dir: Path, max_score: int) -> CriterionResult:
     score = 0
     evidence = []
 
-    has_verification_terms = any(token in body.lower() for token in ["verify", "validation", "test", "assert", "expected output"])
-    has_evals_dir = (skill_dir / "evals").exists()
+    has_verification_terms = any(
+        token in body.lower()
+        for token in ["verify", "validation", "test", "assert", "expected output", "check that", "confirm"]
+    )
+    evals_dir = skill_dir / "evals"
+    has_evals_dir = evals_dir.exists()
 
     if has_verification_terms:
         score += 6
@@ -276,57 +398,70 @@ def score_verifiability(body: str, skill_dir: Path) -> CriterionResult:
         evidence.append("No clear verification/testing guidance found.")
 
     if has_evals_dir:
-        score += 4
-        evidence.append("Skill has an `evals/` directory.")
+        eval_files = list(evals_dir.glob("*.json")) + list(evals_dir.glob("*.md"))
+        if eval_files:
+            score += 4
+            evidence.append(f"Has `evals/` directory with {len(eval_files)} file(s).")
+        else:
+            score += 1
+            evidence.append("Has `evals/` directory but it appears empty.")
     else:
         evidence.append("No `evals/` directory present.")
 
-    return CriterionResult(score=min(score, max_score), max_score=max_score, status=status_for(score, max_score), evidence=evidence)
+    return CriterionResult(
+        score=min(score, max_score), max_score=max_score, status=status_for(score, max_score), evidence=evidence
+    )
+
+
+# Fix 4: Weighted recommendations — sorted by potential score delta, top 3 only
+def generate_recommendations(criteria: Dict[str, CriterionResult]) -> List[str]:
+    deltas: List[Tuple[int, str]] = []
+    for name, result in criteria.items():
+        delta = result.max_score - result.score
+        if delta > 0 and name in RECOMMENDATION_TEMPLATES:
+            deltas.append((delta, f"{RECOMMENDATION_TEMPLATES[name]} (+{delta} pts)"))
+    deltas.sort(reverse=True)
+    return [msg for _, msg in deltas[:3]]
 
 
 def evaluate_skill(skill_dir: Path) -> SkillResult:
     skill_md = skill_dir / "SKILL.md"
     text = skill_md.read_text(encoding="utf-8", errors="ignore")
-    frontmatter, has_frontmatter = parse_frontmatter(text)
+
+    # Fix 2: parse_frontmatter now returns warnings
+    frontmatter, has_frontmatter, fm_warnings = parse_frontmatter(text)
 
     body = text
     if has_frontmatter:
         fm_end = text.find("\n---\n", 4)
         if fm_end != -1:
-            body = text[fm_end + 5 :]
+            body = text[fm_end + 5:]
 
     folder_name = skill_dir.name
 
+    # Fix 5: select rubric based on tag
+    skill_tag = frontmatter.get("tag", "domain-specific").strip()
+    rubric = META_RUBRIC if skill_tag == "meta" else DEFAULT_RUBRIC
+
     criteria = {
-        "metadata_frontmatter": score_metadata(folder_name, frontmatter, has_frontmatter),
-        "trigger_description": score_trigger_description(frontmatter),
-        "instruction_clarity": score_instruction_clarity(body),
-        "actionability_reusability": score_actionability(body),
-        "resource_consistency": score_resource_consistency(skill_dir, body),
-        "safety_non_surprise": score_safety(body),
-        "verifiability_evals": score_verifiability(body, skill_dir),
+        "metadata_frontmatter": score_metadata(
+            folder_name, frontmatter, has_frontmatter, fm_warnings, rubric["metadata_frontmatter"]
+        ),
+        "trigger_description": score_trigger_description(frontmatter, rubric["trigger_description"]),
+        "instruction_clarity": score_instruction_clarity(body, rubric["instruction_clarity"]),
+        "actionability_reusability": score_actionability(body, rubric["actionability_reusability"]),
+        "resource_consistency": score_resource_consistency(skill_dir, body, rubric["resource_consistency"]),
+        "safety_non_surprise": score_safety(body, rubric["safety_non_surprise"]),
+        "verifiability_evals": score_verifiability(body, skill_dir, rubric["verifiability_evals"]),
     }
 
     total_score = sum(item.score for item in criteria.values())
     max_score = sum(item.max_score for item in criteria.values())
 
-    critical_issues: List[str] = []
-    recommendations: List[str] = []
+    critical_issues = [name for name, result in criteria.items() if result.status == "critical"]
 
-    for name, result in criteria.items():
-        if result.status == "critical":
-            critical_issues.append(name)
-
-    if criteria["metadata_frontmatter"].score < 15:
-        recommendations.append("Fix frontmatter completeness and naming consistency.")
-    if criteria["trigger_description"].score < 10:
-        recommendations.append("Improve description with explicit when-to-use trigger context.")
-    if criteria["instruction_clarity"].score < 12:
-        recommendations.append("Refactor SKILL.md into clearer sections and ordered steps.")
-    if criteria["resource_consistency"].score < 8:
-        recommendations.append("Remove or fix broken references to scripts/references/assets.")
-    if criteria["verifiability_evals"].score < 6:
-        recommendations.append("Add verification guidance and objective eval criteria.")
+    # Fix 4: recommendations ordered by score delta impact
+    recommendations = generate_recommendations(criteria)
 
     return SkillResult(
         skill_name=frontmatter.get("name", folder_name),
@@ -334,6 +469,7 @@ def evaluate_skill(skill_dir: Path) -> SkillResult:
         total_score=total_score,
         max_score=max_score,
         quality_band=quality_band(total_score),
+        skill_tag=skill_tag,
         criteria=criteria,
         critical_issues=critical_issues,
         recommendations=recommendations,
@@ -347,6 +483,7 @@ def to_serializable(result: SkillResult) -> Dict:
         "total_score": result.total_score,
         "max_score": result.max_score,
         "quality_band": result.quality_band,
+        "skill_tag": result.skill_tag,
         "criteria": {
             key: {
                 "score": value.score,
@@ -371,10 +508,10 @@ def to_context_path(path: Path, base: Path) -> str:
 def build_dashboard_html(report: Dict) -> str:
     data = json.dumps(report, ensure_ascii=False)
     return f"""<!doctype html>
-<html lang=\"en\">
+<html lang="en">
 <head>
-  <meta charset=\"utf-8\" />
-  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Skills Quality Dashboard</title>
   <style>
     body {{ font-family: Arial, sans-serif; margin: 0; padding: 24px; background: #f5f7fb; color: #222; }}
@@ -388,13 +525,14 @@ def build_dashboard_html(report: Dict) -> str:
     .good {{ background: #16a34a; }}
     .fair {{ background: #ca8a04; }}
     .poor {{ background: #dc2626; }}
+    .tag {{ display: inline-block; padding: 1px 6px; border-radius: 4px; font-size: 11px; background: #e5e7eb; color: #374151; margin-left: 4px; }}
     details {{ margin-top: 6px; }}
     ul {{ margin: 6px 0; padding-left: 18px; }}
   </style>
 </head>
 <body>
   <h1>Skills Quality Dashboard</h1>
-  <div id=\"cards\" class=\"cards\"></div>
+  <div id="cards" class="cards"></div>
   <table>
     <thead>
       <tr>
@@ -403,10 +541,10 @@ def build_dashboard_html(report: Dict) -> str:
         <th>Score</th>
         <th>Band</th>
         <th>Critical Issues</th>
-        <th>Recommendations</th>
+        <th>Top Recommendations</th>
       </tr>
     </thead>
-    <tbody id=\"rows\"></tbody>
+    <tbody id="rows"></tbody>
   </table>
 
   <script>
@@ -420,23 +558,26 @@ def build_dashboard_html(report: Dict) -> str:
     const goodCount = report.summary.by_band.good || 0;
 
     cardsEl.innerHTML = `
-      <div class=\"card\"><strong>Total skills</strong><div>${{report.summary.total_skills}}</div></div>
-      <div class=\"card\"><strong>Average score</strong><div>${{report.summary.average_score}}</div></div>
-      <div class=\"card\"><strong>Good</strong><div>${{goodCount}}</div></div>
-      <div class=\"card\"><strong>Fair</strong><div>${{fairCount}}</div></div>
-      <div class=\"card\"><strong>Poor</strong><div>${{poorCount}}</div></div>
+      <div class="card"><strong>Total skills</strong><div>${{report.summary.total_skills}}</div></div>
+      <div class="card"><strong>Average score</strong><div>${{report.summary.average_score}}</div></div>
+      <div class="card"><strong>Good</strong><div style="color:#16a34a">${{goodCount}}</div></div>
+      <div class="card"><strong>Fair</strong><div style="color:#ca8a04">${{fairCount}}</div></div>
+      <div class="card"><strong>Poor</strong><div style="color:#dc2626">${{poorCount}}</div></div>
     `;
 
     report.skills.forEach((item, idx) => {{
       const crit = item.critical_issues.length ? item.critical_issues.join(', ') : '-';
-      const rec = item.recommendations.length ? `<ul>${{item.recommendations.map(r => `<li>${{r}}</li>`).join('')}}</ul>` : '-';
+      const rec = item.recommendations.length
+        ? `<ul>${{item.recommendations.map(r => `<li>${{r}}</li>`).join('')}}</ul>`
+        : '-';
+      const tagBadge = item.skill_tag ? `<span class="tag">${{item.skill_tag}}</span>` : '';
       rowsEl.innerHTML += `
         <tr>
           <td>${{idx + 1}}</td>
-          <td><strong>${{item.skill_name}}</strong><br/><small>${{item.skill_path}}</small></td>
+          <td><strong>${{item.skill_name}}</strong>${{tagBadge}}<br/><small style="color:#888">${{item.skill_path}}</small></td>
           <td>${{item.total_score}} / ${{item.max_score}}</td>
-          <td><span class=\"pill ${{item.quality_band}}\">${{item.quality_band}}</span></td>
-          <td>${{crit}}</td>
+          <td><span class="pill ${{item.quality_band}}">${{item.quality_band}}</span></td>
+          <td style="font-size:12px">${{crit}}</td>
           <td>${{rec}}</td>
         </tr>
       `;
@@ -463,14 +604,14 @@ def run(skills_root: Path, output_json: Path, output_html: Path, exclude: List[s
 
     total = len(results)
     avg = round(sum(item.total_score for item in results) / total, 2) if total else 0
-    by_band = {"good": 0, "fair": 0, "poor": 0}
+    by_band: Dict[str, int] = {"good": 0, "fair": 0, "poor": 0}
     for item in results:
         by_band[item.quality_band] += 1
 
     report = {
         "meta": {
             "skills_root": to_context_path(skills_root, context_base),
-            "rubric_version": "1.0.0",
+            "rubric_version": "2.0.0",
             "generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         },
         "summary": {

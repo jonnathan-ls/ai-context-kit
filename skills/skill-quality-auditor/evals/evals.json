@@ -1,5 +1,6 @@
 {
   "skill_name": "skill-quality-auditor",
+  "rubric_version": "2.0.0",
   "evals": [
     {
       "id": 1,
@@ -8,9 +9,11 @@
       "files": [],
       "expectations": [
         "The output JSON contains summary.total_skills and summary.by_band.",
-        "Every analyzed skill has total_score, quality_band, criteria, and recommendations fields.",
+        "Every analyzed skill has total_score, max_score, quality_band, skill_tag, criteria, and recommendations fields.",
         "At least one poor/fair/good classification appears in realistic repositories.",
-        "A static HTML dashboard file is generated and references the same JSON-derived data."
+        "A static HTML dashboard file is generated referencing the same JSON-derived data.",
+        "recommendations array has at most 3 entries and each entry includes a score delta in parentheses like (+N pts).",
+        "skill_tag field is present for every skill entry in the report."
       ]
     },
     {
@@ -20,8 +23,9 @@
       "files": [],
       "expectations": [
         "Skills are sorted by descending total_score.",
-        "Poor-quality list only includes skills with score below 60.",
-        "Top 5 list contains exactly 5 entries when at least 5 skills exist."
+        "Poor-quality list only includes skills with total_score below 60.",
+        "Top 5 list contains exactly 5 entries when at least 5 skills exist.",
+        "Meta-tagged skills (skill_tag: meta) have max_score of 100 derived from META_RUBRIC weights."
       ]
     },
     {
@@ -32,7 +36,51 @@
       "expectations": [
         "Each criterion object includes score, max_score, status, and evidence.",
         "Evidence arrays are not empty for scored criteria.",
-        "Critical issues are traceable back to at least one criterion status marked critical."
+        "Critical issues are traceable back to at least one criterion status marked critical.",
+        "Evidence includes mention of detected tables, checkboxes, or code blocks when present.",
+        "YAML block scalar warnings appear in metadata_frontmatter evidence when a skill uses > or | in frontmatter."
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Score the fixture at evals/fixtures/poor_skill.md and verify it lands in the poor band (score < 60).",
+      "expected_output": "poor_skill.md scores below 60 due to missing kebab-case name, missing trigger context, and no structure.",
+      "files": ["evals/fixtures/poor_skill.md"],
+      "expectations": [
+        "total_score is less than 60.",
+        "quality_band is poor.",
+        "metadata_frontmatter status is critical or attention (name is not kebab-case).",
+        "trigger_description status is critical (no trigger context in description).",
+        "instruction_clarity status is critical (no headings, no steps, no checkboxes, no tables).",
+        "recommendations array contains at least 2 entries."
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "Score the fixture at evals/fixtures/fair_skill.md and verify it lands in the fair band (60-79).",
+      "expected_output": "fair_skill.md scores 60-79: valid frontmatter and steps, but no tables, no evals, no code blocks.",
+      "files": ["evals/fixtures/fair_skill.md"],
+      "expectations": [
+        "total_score is between 60 and 79 inclusive.",
+        "quality_band is fair.",
+        "metadata_frontmatter status is good.",
+        "instruction_clarity status is good (has headings and numbered steps).",
+        "verifiability_evals status is critical (no evals/ directory).",
+        "recommendations array includes verifiability recommendation."
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "Score the fixture at evals/fixtures/good_skill.md and verify it lands in the good band (>= 80).",
+      "expected_output": "good_skill.md scores >= 80: complete frontmatter, rich structure including checkboxes and tables, anti-patterns, verification criteria.",
+      "files": ["evals/fixtures/good_skill.md"],
+      "expectations": [
+        "total_score is 80 or higher.",
+        "quality_band is good.",
+        "instruction_clarity evidence mentions checkboxes and table rows.",
+        "actionability_reusability evidence mentions code blocks and table rows.",
+        "safety_non_surprise status is good (has anti-patterns section).",
+        "recommendations array has at most 1 entry."
       ]
     }
   ]
