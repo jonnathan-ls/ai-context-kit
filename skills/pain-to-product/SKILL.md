@@ -1,20 +1,6 @@
 ---
 name: pain-to-product
-version: 1.0.0
-description: >
-  Entrepreneurial brainstorm specialist. Use this skill whenever the user
-  describes a problem, pain point, frustration, or unmet need — especially
-  when they want to explore business opportunities, product ideas, or digital
-  solutions. Triggers on: "tenho um problema", "as pessoas sofrem com",
-  "quero resolver", "qual seria um produto para", "brainstorm de ideias",
-  "oportunidade de negócio", "dor do usuário", "solução digital", "ideia de
-  startup", "produto que resolva", "dor de mercado", "problema que ninguém
-  resolve", "preciso de uma solução para". Conducts a structured Socratic
-  interview, validates the pain with entrepreneurial frameworks (JTBD,
-  Problem-Solution Fit, Blue Ocean), and outputs ranked digital product ideas
-  with viability signals.
-allowed-tools: Read
-tag: domain-specific
+description: Entrepreneurial brainstorm specialist. Use this skill whenever the user describes a problem, pain point, frustration, or unmet need — especially when they want to explore business opportunities, product ideas, or digital solutions. Triggers on problem, pain point, business opportunity, startup idea, product idea, JTBD, Blue Ocean, digital solution, brainstorm, unmet need.
 ---
 
 # pain-to-product
