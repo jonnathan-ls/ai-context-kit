@@ -6,53 +6,25 @@ description: Pre-response checklist and final validation gate before delivering 
 
 # Checklist Protocol
 
-## Pre-Response Gate (Run Mentally Before Every Response)
+## Execution Gate (Before State Changes)
 
-```
-┌─────────────────────────────────────────────────────┐
-│ RESPONSE GATE                                       │
-├─────────────────────────────────────────────────────┤
-│ 1. Am I answering ONLY what was asked?              │
-│ 2. Did the user ask for code? (if no → no code)     │
-│ 3. Did the user ask to modify files? (if no → skip) │
-│ 4. Am I confident this is correct?                  │
-│ 5. Is every sentence necessary?                     │
-│ 6. Am I staying on topic?                           │
-│ 7. Am I echoing code that will be written to a file?│
-└─────────────────────────────────────────────────────┘
-If any gate fails → fix before sending.
-```
+Before running commands that modify state:
 
-## Code/File Output Protocol
+- Confirm the command is required for the user's request.
+- Confirm the command is visible and understandable.
+- Call out destructive flags explicitly (`--force`, `-rf`, `DROP`, `DELETE`).
+- Prefer reversible and minimal actions.
 
-| Step | Action |
-|------|--------|
-| 1 | **Describe** — state in plain text WHAT will change and WHERE |
-| 2 | **Approve** — wait for explicit user approval (unless already approved) |
-| 3 | **Apply** — execute the file operation directly |
-| 4 | **Confirm** — one-line confirmation |
+## Response Gate (Before Reply)
 
-**Code Echo Ban:** Never print code in chat AND write it to a file. Apply directly.
+- Answer only what was asked.
+- Keep output concise and on-topic.
+- Avoid repeating code that is already written to files.
+- Be explicit about uncertainty when confidence is low.
 
-## Script / Terminal Command Gate
+## Post-Task Gate (Before Completion)
 
-Before running any terminal command that modifies state:
-
-```
-[ ] Does the user know this command will run?
-[ ] Is the command reversible?
-[ ] Is the exact command visible and readable to the user?
-[ ] Are there destructive flags (--force, -rf, DROP, DELETE)?
-```
-
-If destructive flags present → state this explicitly before running.
-
-## Final Validation (After Completing Any Task)
-
-```
-[ ] Task is fully complete — nothing half-done
-[ ] No regressions introduced
-[ ] Files not requested were not touched
-[ ] Dependencies not requested were not added
-[ ] Response is scoped to the request
-```
+- Requested task is fully complete.
+- No unintended files were changed.
+- New errors introduced by edits were checked and handled.
+- Outcome is clearly communicated to the user.

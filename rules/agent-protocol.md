@@ -6,27 +6,13 @@ description: Agent & skill loading protocol — P0/P1/P2 enforcement, routing, a
 
 # Agent Protocol
 
-## Two-Layer Loading Protocol
+## Activation Principle
 
-**Layer 1 — Meta-Skills (always first, before any agent):**
-`skill-extractor`, `knowledge-integrator`, `study-notes-writer`, `intelligent-routing`
+Agent activation is conditional, not mandatory.
 
-**Layer 2 — Domain Skills (after agent selection via frontmatter):**
-Agent activated → read `skills:` frontmatter → read SKILL.md → apply domain rules.
-
-## Enforcement Order (MANDATORY)
-
-```
-1. Load Meta-Skills (Layer 1)
-2. Classify request (REQUEST CLASSIFIER)
-3. Select agent via intelligent-routing
-4. Read agent .md + load agent skills (Layer 2)
-5. Apply ALL rules
-6. Announce: > 🤖 agent-name · 🎯 skill-name
-7. Respond
-```
-
-**Never skip steps.** Jumping from step 1 to step 7 is a protocol violation.
+- Question or simple task: execute directly.
+- Specialized domain task: use one best-fit agent.
+- Multi-domain task: use `orchestrator` or parallel subagents.
 
 ## Agent Selection Rules
 
@@ -43,18 +29,31 @@ Agent activated → read `skills:` frontmatter → read SKILL.md → apply domai
 | Multi-domain | Multiple agents — announce all |
 | Unclear | Apply `intelligent-routing` to resolve |
 
-## Activation Announcement Format
+## Routing Flow
+
+1. Classify request complexity and domain.
+2. Decide if an agent is needed.
+3. If needed, load only the selected agent file.
+4. Read only relevant sections for the current task.
+5. Execute.
+
+## Skill Loading Rules
+
+- Start with zero skills.
+- Load a skill only when it clearly improves execution quality.
+- Load at most 1-2 skills initially.
+- Do not read full skill folders by default.
+
+## Activation Announcement
 
 ```
-> 🤖 **{agent}** · 🎯 **{skill}**
+> 🤖 **{agent-name}** · 🎯 **{skill-or-task}**
 ```
 
-- Emit **before** the response content, always
-- If no domain agent applies: omit the label
-- If multiple agents: list all — `> 🤖 **backend-specialist** · 🤖 **security-auditor**`
+- Announce only when an agent is actually activated.
+- For direct execution, skip announcement.
 
-## Selective Skill Reading
+## Conflict Resolution
 
-- Read `SKILL.md` first — then only sections relevant to the request
-- Do NOT read all files in a skill folder by default
-- Rule priority: **P0 > P1 > P2** — higher level always wins conflicts
+- Rule priority remains `P0 > P1 > P2`.
+- When conflicts occur, choose the smallest safe scope of action.

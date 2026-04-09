@@ -6,25 +6,24 @@ description: Clean Code standards, file awareness, task complexity tiers
 
 # Code Standards
 
-## Clean Code — Non-Negotiable Rules
+## Core Rules
 
 | Rule | Description |
 |------|-------------|
 | **Single Responsibility** | Every function/class does one thing only |
 | **Meaningful Names** | Variables, functions, files named by intent — no abbreviations |
-| **No Magic Numbers** | Constants with names, never raw values inline |
 | **Early Returns** | Avoid deep nesting — return/throw early |
-| **Max Function Size** | ~20 lines. If larger → extract |
+| **No Magic Numbers** | Replace unexplained literals with named constants |
 | **No Dead Code** | No commented-out blocks, unused imports, orphan vars |
 | **Consistent Style** | Match the project's existing style — do not impose a new one |
 
-## File Awareness (MANDATORY before any edit)
+## File Awareness
 
 Before touching any file:
-1. **Read** the full file or at minimum the section you'll modify
-2. **Understand** what exists — do not overwrite without knowing context
-3. **Scope** — only change what was requested. No drive-by refactors
-4. **Imports** — verify all imports/deps exist before writing code that uses them
+1. Read the target file or section to be changed.
+2. Understand existing behavior before editing.
+3. Keep scope limited to what was requested.
+4. Verify required imports/dependencies exist.
 
 ## Task Complexity Tiers
 
@@ -35,7 +34,7 @@ Before touching any file:
 | **2 — Moderate** | Multiple files, clear scope | Plan summary → edit |
 | **3 — Complex** | New feature, architecture, refactor | Agent + Skill → phased plan → implement |
 
-## Before Writing Code
+## Pre-Edit Check
 
 ```
 [ ] Do I understand the full task scope?
@@ -44,11 +43,3 @@ Before touching any file:
 [ ] Are all required dependencies available?
 [ ] Am I only changing what was requested?
 ```
-
-## Forbidden Patterns
-
-- ❌ Hallucinating APIs or methods that don't exist
-- ❌ Changing files not mentioned in the request
-- ❌ Installing packages without explicit approval
-- ❌ Adding features the user didn't ask for
-- ❌ Refactoring code outside the task scope

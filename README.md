@@ -76,8 +76,35 @@ aictx doctor                # Validate integrity (broken refs, orphans)
 | `aictx doctor` | Validate integrity: broken skill refs, orphans, broken symlinks |
 | `aictx add skill <name>` | Scaffold a new skill folder with SKILL.md |
 | `aictx add agent <name>` | Scaffold a new agent .md file |
+| `aictx telemetry [path]` | Analyze read_file usage per request from chat/debug logs |
 | `aictx uninstall` | Remove all managed links |
 | `aictx config` | Show configuration and PATH setup |
+
+## Telemetry: Context Read Cost
+
+Use telemetry to measure practical context load by request.
+
+```bash
+# Analyze a specific log file or folder
+aictx telemetry /path/to/log-or-folder
+
+# Auto-detect latest Copilot debug log
+aictx telemetry
+
+# Save machine-readable report
+aictx telemetry /path/to/log --output ./.ai-context/reports/telemetry.json
+
+# JSON to stdout
+aictx telemetry /path/to/log --json
+```
+
+Report includes:
+- Requests detected
+- `read_file` calls
+- Unique files read
+- Lines requested
+- Estimated tokens (`chars / 4` heuristic)
+- Per-request breakdown
 
 ## 🤖 Supported AI Tools
 

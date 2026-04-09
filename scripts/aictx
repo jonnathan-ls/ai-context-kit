@@ -10,6 +10,7 @@ Commands:
     aictx install           Interactive installation of links
     aictx install --all     Install all targets and resources
     aictx install --force   Overwrite existing links
+    aictx telemetry         Analyze context-read telemetry from logs
     aictx status            Show current link/resource status
     aictx uninstall         Remove all managed links
     aictx config            Show current configuration
@@ -21,8 +22,10 @@ import json
 import re
 import argparse
 import platform
+from collections import Counter, defaultdict
 from pathlib import Path
 from datetime import datetime
+from typing import Dict, List, Optional
 
 HOME = Path.home()
 AICTX_HOME = Path(os.environ.get("AICTX_HOME", HOME / ".ai-context"))
@@ -301,6 +304,264 @@ def parse_jsonc(text: str) -> dict:
     # Remove trailing commas before } or ]
     text = re.sub(r",\s*([\]}])", r"\1", text)
     return json.loads(text)
+
+
+def _find_default_log_target() -> Optional[Path]:
+    """Try to locate the newest Copilot chat debug log path."""
+    env_target = os.environ.get("VSCODE_TARGET_SESSION_LOG")
+    if env_target:
+        p = Path(env_target).expanduser()
+        if p.exists():
+            return p
+
+    logs_root = HOME / ".config/Code/User/workspaceStorage"
+    if not logs_root.exists():
+        return None
+
+    candidates = []
+    for p in logs_root.glob("**/GitHub.copilot-chat/debug-logs/**/*"):
+        if p.is_file():
+            try:
+                candidates.append((p.stat().st_mtime, p))
+            except OSError:
+                continue
+
+    if not candidates:
+        return None
+
+    candidates.sort(key=lambda x: x[0], reverse=True)
+    return candidates[0][1]
+
+
+def _iter_log_files(target: Path) -> List[Path]:
+    if target.is_file():
+        return [target]
+
+    allowed = {".json", ".jsonl", ".log", ".txt", ".md"}
+    files = []
+    for p in sorted(target.rglob("*")):
+        if not p.is_file():
+            continue
+        if p.suffix.lower() in allowed:
+            files.append(p)
+    return files
+
+
+def _safe_read_text(path: Path) -> str:
+    try:
+        return path.read_text(errors="ignore")
+    except Exception:
+        return ""
+
+
+def _estimate_chars(file_path: str, start: Optional[int], end: Optional[int], cache: Dict) -> int:
+    if not file_path or start is None or end is None:
+        return 0
+
+    try:
+        p = Path(file_path).expanduser()
+        if not p.is_absolute():
+            p = AICTX_HOME / p
+        p = p.resolve()
+    except Exception:
+        return 0
+
+    key = (str(p), start, end)
+    if key in cache:
+        return cache[key]
+
+    if not p.exists() or p.is_dir():
+        cache[key] = 0
+        return 0
+
+    try:
+        lines = p.read_text(errors="ignore").splitlines(keepends=True)
+    except Exception:
+        cache[key] = 0
+        return 0
+
+    start_i = max(start, 1) - 1
+    end_i = min(end, len(lines))
+    if end_i <= start_i:
+        cache[key] = 0
+        return 0
+
+    chars = len("".join(lines[start_i:end_i]))
+    cache[key] = chars
+    return chars
+
+
+def cmd_telemetry(args):
+    """Analyze read_file telemetry from chat/debug logs."""
+    global AICTX_HOME
+    AICTX_HOME = resolve_aictx_home()
+
+    target_input = args.path
+    if target_input:
+        target = Path(target_input).expanduser()
+    else:
+        target = _find_default_log_target()
+
+    if not target or not target.exists():
+        print("\n❌ No log target found.")
+        print("   Provide a file/folder path: aictx telemetry <path-to-log>")
+        return 1
+
+    files = _iter_log_files(target)
+    if not files:
+        print(f"\n❌ No readable log files found at: {target}")
+        return 1
+
+    request_marker_re = re.compile(r'"role"\s*:\s*"user"|<userRequest>|^\s*User\s*:', re.IGNORECASE)
+    read_call_re = re.compile(
+        r'functions\.read_file|["\']name["\']\s*:\s*["\']read_file["\']|'
+        r'["\']tool["\']\s*:\s*["\']read_file["\']|recipient_name["\']?\s*:\s*["\']functions\.read_file["\']',
+        re.IGNORECASE,
+    )
+    file_path_re = re.compile(r'["\']filePath["\']\s*:\s*["\']([^"\']+)["\']')
+    start_re = re.compile(r'["\']startLine["\']\s*:\s*(\d+)')
+    end_re = re.compile(r'["\']endLine["\']\s*:\s*(\d+)')
+
+    req_offset = 0
+    req_metrics = {}
+    file_counter = Counter()
+    chars_cache = {}
+
+    for log_file in files:
+        text = _safe_read_text(log_file)
+        if not text.strip():
+            continue
+
+        lines = text.splitlines()
+        req_id_local = 0
+        per_req_local = defaultdict(lambda: {
+            "read_calls": 0,
+            "files": set(),
+            "lines_requested": 0,
+            "chars_estimated": 0,
+        })
+
+        for idx, line in enumerate(lines):
+            if request_marker_re.search(line):
+                req_id_local += 1
+
+            if not read_call_re.search(line):
+                continue
+
+            if req_id_local == 0:
+                req_id_local = 1
+
+            global_req_id = req_offset + req_id_local
+            window = "\n".join(lines[idx:idx + 40])
+
+            fp_match = file_path_re.search(window)
+            st_match = start_re.search(window)
+            en_match = end_re.search(window)
+
+            file_path = fp_match.group(1) if fp_match else ""
+            start = int(st_match.group(1)) if st_match else None
+            end = int(en_match.group(1)) if en_match else None
+            lines_requested = (end - start + 1) if (start is not None and end is not None and end >= start) else 0
+            chars_estimated = _estimate_chars(file_path, start, end, chars_cache)
+
+            m = per_req_local[global_req_id]
+            m["read_calls"] += 1
+            if file_path:
+                m["files"].add(file_path)
+                file_counter[file_path] += 1
+            m["lines_requested"] += lines_requested
+            m["chars_estimated"] += chars_estimated
+
+        if req_id_local > 0:
+            req_offset += req_id_local
+            for rid, data in per_req_local.items():
+                req_metrics[rid] = data
+
+    if not req_metrics:
+        print("\n⚠️  No read_file tool calls found in the selected logs.")
+        print(f"   Target analyzed: {target}")
+        return 0
+
+    total_calls = sum(v["read_calls"] for v in req_metrics.values())
+    total_lines = sum(v["lines_requested"] for v in req_metrics.values())
+    total_chars = sum(v["chars_estimated"] for v in req_metrics.values())
+    total_tokens_est = int(total_chars / 4) if total_chars > 0 else 0
+    total_requests = len(req_metrics)
+
+    top_files = [
+        {"file": path, "reads": count}
+        for path, count in file_counter.most_common(args.top_files)
+    ]
+
+    report = {
+        "generatedAt": datetime.now().isoformat(timespec="seconds"),
+        "target": str(target),
+        "filesScanned": len(files),
+        "summary": {
+            "requests": total_requests,
+            "readCalls": total_calls,
+            "uniqueFiles": len(file_counter),
+            "linesRequested": total_lines,
+            "charsEstimated": total_chars,
+            "tokensEstimated": total_tokens_est,
+            "avgReadsPerRequest": round(total_calls / total_requests, 2),
+            "avgLinesPerRequest": round(total_lines / total_requests, 2),
+        },
+        "byRequest": [
+            {
+                "request": rid,
+                "readCalls": req_metrics[rid]["read_calls"],
+                "uniqueFiles": len(req_metrics[rid]["files"]),
+                "linesRequested": req_metrics[rid]["lines_requested"],
+                "tokensEstimated": int(req_metrics[rid]["chars_estimated"] / 4) if req_metrics[rid]["chars_estimated"] > 0 else 0,
+            }
+            for rid in sorted(req_metrics)
+        ],
+        "topFiles": top_files,
+    }
+
+    if args.output:
+        out_path = Path(args.output).expanduser()
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(json.dumps(report, indent=2) + "\n")
+
+    if args.json:
+        print(json.dumps(report, indent=2))
+        return 0
+
+    print("\n📊 AI Context — Telemetry")
+    print(f"   Target         : {report['target']}")
+    print(f"   Log files      : {report['filesScanned']}")
+    print(f"   Requests       : {report['summary']['requests']}")
+    print(f"   read_file calls: {report['summary']['readCalls']}")
+    print(f"   Unique files   : {report['summary']['uniqueFiles']}")
+    print(f"   Lines requested: {report['summary']['linesRequested']}")
+    print(f"   Est. tokens    : {report['summary']['tokensEstimated']}  (heuristic: chars/4)")
+    print(f"   Avg reads/req  : {report['summary']['avgReadsPerRequest']}")
+    print(f"   Avg lines/req  : {report['summary']['avgLinesPerRequest']}")
+
+    print("\nBy request:")
+    print("  req | read_calls | unique_files | lines_requested | est_tokens")
+    print("  ----+------------+--------------+-----------------+-----------")
+    for row in report["byRequest"]:
+        print(
+            f"  {str(row['request']).rjust(3)} | "
+            f"{str(row['readCalls']).rjust(10)} | "
+            f"{str(row['uniqueFiles']).rjust(12)} | "
+            f"{str(row['linesRequested']).rjust(15)} | "
+            f"{str(row['tokensEstimated']).rjust(9)}"
+        )
+
+    if top_files:
+        print("\nTop files (most read):")
+        for item in top_files:
+            print(f"  - {item['file']}  ({item['reads']} reads)")
+
+    if args.output:
+        print(f"\n💾 JSON report saved to: {Path(args.output).expanduser()}")
+
+    print()
+    return 0
 
 
 def inject_vscode_settings(settings_path: Path, resources: list):
@@ -827,6 +1088,8 @@ Examples:
   aictx install           Interactive install
   aictx install --all     Install all targets without prompts
   aictx install --force   Overwrite existing links
+    aictx telemetry <path>  Analyze read_file usage per request from logs
+    aictx telemetry --json  Emit machine-readable report
   aictx ls                List all skills, agents, workflows
   aictx ls skills         List only skills
   aictx init              Scaffold .agent/ in current project
@@ -863,6 +1126,13 @@ Examples:
     p_install.add_argument("--all",   action="store_true", help="Install all targets and resources")
     p_install.add_argument("--force", action="store_true", help="Overwrite existing links")
     p_install.set_defaults(func=cmd_install)
+
+    p_telemetry = sub.add_parser("telemetry", help="Analyze context-read telemetry from chat/debug logs")
+    p_telemetry.add_argument("path", nargs="?", help="Log file or folder path (defaults to latest Copilot debug log)")
+    p_telemetry.add_argument("--json", action="store_true", help="Output JSON to stdout")
+    p_telemetry.add_argument("--output", help="Save JSON report to a file path")
+    p_telemetry.add_argument("--top-files", type=int, default=10, help="Number of top-read files to show (default: 10)")
+    p_telemetry.set_defaults(func=cmd_telemetry)
 
     args = parser.parse_args()
     if not args.command:
