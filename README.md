@@ -28,6 +28,13 @@ Centralized AI context management — one source of truth for Copilot, Gemini, C
     ├── aictx               ← Main CLI (Python)
     ├── aictx.sh            ← Shell wrapper
     └── install.sh          ← First-time setup
+
+./archived/                ← Archived resources (not processed)
+├── rules/
+├── skills/
+├── agents/
+├── workflows/
+└── openspec/specs/
 ```
 
 ## 🚀 Quick Start
@@ -76,9 +83,27 @@ aictx doctor                # Validate integrity (broken refs, orphans)
 | `aictx doctor` | Validate integrity: broken skill refs, orphans, broken symlinks |
 | `aictx add skill <name>` | Scaffold a new skill folder with SKILL.md |
 | `aictx add agent <name>` | Scaffold a new agent .md file |
+| `aictx archive <type> <name>` | Move item to archived/ and auto-sync |
+| `aictx unarchive <type> <name>` | Restore archived item and auto-sync |
+| `aictx archived [type]` | List archived resources (optionally filtered by type) |
 | `aictx telemetry [path]` | Analyze read_file usage per request from chat/debug logs |
 | `aictx uninstall` | Remove all managed links |
 | `aictx config` | Show configuration and PATH setup |
+
+Supported archive types: `skill`, `rule`, `agent`, `workflow`, `spec`.
+Archive and unarchive automatically run `aictx sync` so the generated context stays updated.
+
+Examples:
+
+```bash
+aictx archive skill clean-code
+aictx archive rule socratic-gate
+aictx archive agent frontend-specialist
+aictx archive workflow deploy
+aictx unarchive skill clean-code
+aictx archived
+aictx archived skills
+```
 
 ## Telemetry: Context Read Cost
 

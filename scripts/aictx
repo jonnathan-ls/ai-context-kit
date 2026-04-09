@@ -32,6 +32,44 @@ AICTX_HOME = Path(os.environ.get("AICTX_HOME", HOME / ".ai-context"))
 
 RESOURCES = ["rules", "skills", "agents", "workflows"]
 
+ARCHIVABLE_TYPES = {
+    "skill": {
+        "active_dir": "skills",
+        "archived_dir": "skills",
+        "active_pattern": "{name}",
+    },
+    "rule": {
+        "active_dir": "rules",
+        "archived_dir": "rules",
+        "active_pattern": "{name}.md",
+    },
+    "agent": {
+        "active_dir": "agents",
+        "archived_dir": "agents",
+        "active_pattern": "{name}.md",
+    },
+    "workflow": {
+        "active_dir": "workflows",
+        "archived_dir": "workflows",
+        "active_pattern": "{name}.md",
+    },
+    "spec": {
+        "active_dir": "openspec/specs",
+        "archived_dir": "openspec/specs",
+        "active_pattern": "{name}.md",
+    },
+}
+
+ARCHIVABLE_ALIASES = {
+    "skills": "skill",
+    "rules": "rule",
+    "agents": "agent",
+    "workflows": "workflow",
+    "specs": "spec",
+    "espec": "spec",
+    "especs": "spec",
+}
+
 TARGETS = {
     "copilot": {
         "description": "VS Code Copilot (User Profile instructions + settings)",
@@ -145,6 +183,52 @@ def scan_resources(aictx_home: Path) -> dict:
                 "name": f.stem,
                 "description": fm.get("description", ""),
             })
+
+    return result
+
+
+def normalize_archivable_type(kind: str) -> Optional[str]:
+    if not kind:
+        return None
+    lowered = kind.strip().lower()
+    if lowered in ARCHIVABLE_TYPES:
+        return lowered
+    return ARCHIVABLE_ALIASES.get(lowered)
+
+
+def build_archivable_paths(aictx_home: Path, kind: str, name: str):
+    conf = ARCHIVABLE_TYPES[kind]
+    normalized_name = name.strip()
+    if normalized_name.endswith(".md"):
+        normalized_name = normalized_name[:-3]
+
+    active_rel = Path(conf["active_dir"]) / conf["active_pattern"].format(name=normalized_name)
+    active_path = aictx_home / active_rel
+
+    archived_base = aictx_home / "archived" / conf["archived_dir"]
+    archived_path = archived_base / active_rel.name
+    return normalized_name, active_path, archived_path
+
+
+def list_archived_items(aictx_home: Path, kind: Optional[str] = None) -> Dict[str, List[str]]:
+    result: Dict[str, List[str]] = {}
+    kinds = [kind] if kind else sorted(ARCHIVABLE_TYPES.keys())
+
+    for item_kind in kinds:
+        conf = ARCHIVABLE_TYPES[item_kind]
+        archived_dir = aictx_home / "archived" / conf["archived_dir"]
+        names: List[str] = []
+
+        if archived_dir.exists():
+            if item_kind == "skill":
+                for entry in sorted(archived_dir.iterdir()):
+                    if entry.is_dir():
+                        names.append(entry.name)
+            else:
+                for entry in sorted(archived_dir.glob("*.md")):
+                    names.append(entry.stem)
+
+        result[item_kind] = names
 
     return result
 
@@ -962,6 +1046,121 @@ def cmd_add(args):
     return 0
 
 
+def cmd_archive(args):
+    """Move an active resource to archived/ so it stops being processed."""
+    global AICTX_HOME
+    AICTX_HOME = resolve_aictx_home()
+
+    kind = normalize_archivable_type(args.kind)
+    if not kind:
+        valid = ", ".join(sorted(ARCHIVABLE_TYPES.keys()))
+        print(f"\n❌ Unknown type: {args.kind}")
+        print(f"   Valid types: {valid}\n")
+        return 1
+
+    name, active_path, archived_path = build_archivable_paths(AICTX_HOME, kind, args.name)
+
+    if not active_path.exists():
+        if archived_path.exists():
+            print(f"\nℹ️  {kind} '{name}' is already archived.")
+            print("   Use: aictx unarchive <type> <name>\n")
+            return 0
+
+        print(f"\n❌ Active {kind} not found: {active_path}")
+        print("   Use: aictx archived to list archived items.\n")
+        return 1
+
+    archived_path.parent.mkdir(parents=True, exist_ok=True)
+    active_path.rename(archived_path)
+
+    print(f"\n✅ Archived {kind}: {name}")
+    print(f"   From: {active_path}")
+    print(f"   To  : {archived_path}")
+    print("\n💡 It will stop being processed in context flows.")
+    print("   Running sync to refresh ALWAYS.md and references...\n")
+
+    sync_result = cmd_sync(args)
+    if sync_result != 0:
+        return sync_result
+
+    return 0
+
+
+def cmd_unarchive(args):
+    """Restore an archived resource back to its active folder."""
+    global AICTX_HOME
+    AICTX_HOME = resolve_aictx_home()
+
+    kind = normalize_archivable_type(args.kind)
+    if not kind:
+        valid = ", ".join(sorted(ARCHIVABLE_TYPES.keys()))
+        print(f"\n❌ Unknown type: {args.kind}")
+        print(f"   Valid types: {valid}\n")
+        return 1
+
+    name, active_path, archived_path = build_archivable_paths(AICTX_HOME, kind, args.name)
+
+    if not archived_path.exists():
+        if active_path.exists():
+            print(f"\nℹ️  {kind} '{name}' is already active.")
+            print("   Use: aictx archive <type> <name>\n")
+            return 0
+
+        print(f"\n❌ Archived {kind} not found: {archived_path}")
+        print("   Use: aictx archived to list archived items.\n")
+        return 1
+
+    active_path.parent.mkdir(parents=True, exist_ok=True)
+    archived_path.rename(active_path)
+
+    print(f"\n✅ Restored {kind}: {name}")
+    print(f"   From: {archived_path}")
+    print(f"   To  : {active_path}")
+    print("\n💡 It will be processed again in context flows.")
+    print("   Running sync to refresh ALWAYS.md and references...\n")
+
+    sync_result = cmd_sync(args)
+    if sync_result != 0:
+        return sync_result
+
+    return 0
+
+
+def cmd_archived(args):
+    """List archived resources by type."""
+    global AICTX_HOME
+    AICTX_HOME = resolve_aictx_home()
+
+    kind = None
+    if getattr(args, "kind", None):
+        kind = normalize_archivable_type(args.kind)
+        if not kind:
+            valid = ", ".join(sorted(ARCHIVABLE_TYPES.keys()))
+            print(f"\n❌ Unknown type: {args.kind}")
+            print(f"   Valid types: {valid}\n")
+            return 1
+
+    archived = list_archived_items(AICTX_HOME, kind)
+
+    print("\n🗄️  AI Context — Archived")
+    print(f"   Root: {AICTX_HOME / 'archived'}\n")
+
+    total = 0
+    for item_kind in sorted(archived.keys()):
+        names = archived[item_kind]
+        total += len(names)
+        print(f"{item_kind}s ({len(names)}):")
+        if names:
+            for name in names:
+                print(f"  - {name}")
+        else:
+            print("  - (none)")
+        print()
+
+    print(f"Total archived items: {total}\n")
+    return 0
+
+
 
 def _ls_header(emoji: str, title: str, count: int) -> None:
     W = "[1;37m"; C = "[96m"; R = "[0m"; DIM = "[2m"
@@ -1088,6 +1287,9 @@ Examples:
   aictx install           Interactive install
   aictx install --all     Install all targets without prompts
   aictx install --force   Overwrite existing links
+    aictx archive skill x   Archive an item so it stops being processed
+    aictx unarchive skill x Restore an archived item
+    aictx archived          List archived items
     aictx telemetry <path>  Analyze read_file usage per request from logs
     aictx telemetry --json  Emit machine-readable report
   aictx ls                List all skills, agents, workflows
@@ -1109,6 +1311,21 @@ Examples:
     p_add.add_argument("--description", "-d", help="Short description")
     p_add.add_argument("--skills", "-s", help="Comma-separated skill refs (agents only)")
     p_add.set_defaults(func=cmd_add)
+
+    p_archive = sub.add_parser("archive", help="Archive a skill/rule/agent/workflow/spec")
+    p_archive.add_argument("kind", help="Type: skill, rule, agent, workflow, spec")
+    p_archive.add_argument("name", help="Resource name (without .md)")
+    p_archive.set_defaults(func=cmd_archive)
+
+    p_unarchive = sub.add_parser("unarchive", help="Restore an archived skill/rule/agent/workflow/spec")
+    p_unarchive.add_argument("kind", help="Type: skill, rule, agent, workflow, spec")
+    p_unarchive.add_argument("name", help="Resource name (without .md)")
+    p_unarchive.set_defaults(func=cmd_unarchive)
+
+    p_archived = sub.add_parser("archived", help="List archived resources")
+    p_archived.add_argument("kind", nargs="?", help="Optional type filter")
+    p_archived.set_defaults(func=cmd_archived)
+
     sub.add_parser("status",    help="Show link status").set_defaults(func=cmd_status)
     sub.add_parser("uninstall", help="Remove all managed links").set_defaults(func=cmd_uninstall)
     sub.add_parser("config",    help="Show configuration").set_defaults(func=cmd_config)
