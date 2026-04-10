@@ -86,6 +86,9 @@ aictx doctor                # Validate integrity (broken refs, orphans)
 | `aictx archive <type> <name>` | Move item to archived/ and auto-sync |
 | `aictx unarchive <type> <name>` | Restore archived item and auto-sync |
 | `aictx archived [type]` | List archived resources (optionally filtered by type) |
+| `aictx skills-scripts [skill]` | List runnable scripts (validated for isolated execution) |
+| `aictx skills-scripts [skill] --all` | Also show blocked scripts with reason (missing deps/setup) |
+| `aictx run-skill <skill> <script> [--cwd <path>] [-- <args...>]` | Execute a skill script via aictx |
 | `aictx telemetry [path]` | Analyze read_file usage per request from chat/debug logs |
 | `aictx uninstall` | Remove all managed links |
 | `aictx config` | Show configuration and PATH setup |
@@ -103,7 +106,16 @@ aictx archive workflow deploy
 aictx unarchive skill clean-code
 aictx archived
 aictx archived skills
+aictx skills-scripts
+aictx skills-scripts skill-quality-auditor
+aictx skills-scripts --all
+aictx run-skill skill-quality-auditor audit_skills.py -- --help
 ```
+
+Notes:
+- `skills-scripts` validates each script in isolation using a probe (`--help`).
+- Scripts that fail due to missing runtime/dependencies are hidden by default and shown with `--all`.
+- `run-skill` also validates script readiness before running; use `--force` to bypass this check.
 
 ## Telemetry: Context Read Cost
 

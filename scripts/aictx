@@ -11,6 +11,8 @@ Commands:
     aictx install --all     Install all targets and resources
     aictx install --force   Overwrite existing links
     aictx telemetry         Analyze context-read telemetry from logs
+    aictx skills-scripts    List runnable scripts available in skills
+    aictx run-skill         Execute a skill script
     aictx status            Show current link/resource status
     aictx uninstall         Remove all managed links
     aictx config            Show current configuration
@@ -22,6 +24,8 @@ import json
 import re
 import argparse
 import platform
+import subprocess
+import shutil
 from collections import Counter, defaultdict
 from pathlib import Path
 from datetime import datetime
@@ -69,6 +73,8 @@ ARCHIVABLE_ALIASES = {
     "espec": "spec",
     "especs": "spec",
 }
+
+RUNNABLE_SCRIPT_EXTS = {".py", ".sh", ".js"}
 
 TARGETS = {
     "copilot": {
@@ -231,6 +237,190 @@ def list_archived_items(aictx_home: Path, kind: Optional[str] = None) -> Dict[st
         result[item_kind] = names
 
     return result
+
+
+def discover_skill_scripts(aictx_home: Path, skill_name: Optional[str] = None) -> Dict[str, List[str]]:
+    skills_dir = aictx_home / "skills"
+    result: Dict[str, List[str]] = {}
+
+    if not skills_dir.exists():
+        return result
+
+    candidates = [skills_dir / skill_name] if skill_name else sorted(p for p in skills_dir.iterdir() if p.is_dir())
+
+    for skill_dir in candidates:
+        if not skill_dir.exists() or not skill_dir.is_dir():
+            continue
+
+        scripts_dir = skill_dir / "scripts"
+        if not scripts_dir.exists() or not scripts_dir.is_dir():
+            continue
+
+        scripts: List[str] = []
+        for path in sorted(scripts_dir.rglob("*")):
+            if not path.is_file():
+                continue
+            if "__pycache__" in path.parts:
+                continue
+            if path.name == "__init__.py" or path.name.startswith("_"):
+                continue
+            if path.suffix.lower() not in RUNNABLE_SCRIPT_EXTS:
+                continue
+            if path.suffix.lower() == ".py":
+                try:
+                    text = path.read_text(errors="ignore")
+                except Exception:
+                    continue
+                if 'if __name__ == "__main__":' not in text and "if __name__ == '__main__':" not in text:
+                    continue
+            scripts.append(str(path.relative_to(scripts_dir)))
+
+        if scripts:
+            result[skill_dir.name] = scripts
+
+    return result
+
+
+def resolve_skill_script(skill_dir: Path, script_name: str) -> Optional[Path]:
+    scripts_dir = skill_dir / "scripts"
+    if not scripts_dir.exists():
+        return None
+
+    requested = script_name.strip()
+    if not requested:
+        return None
+    if ".." in Path(requested).parts:
+        return None
+
+    direct = scripts_dir / requested
+    if direct.exists() and direct.is_file():
+        resolved = direct.resolve()
+        if scripts_dir.resolve() in resolved.parents:
+            return resolved
+        return None
+
+    stem = Path(requested).stem
+    matches: List[Path] = []
+    for candidate in scripts_dir.rglob("*"):
+        if not candidate.is_file():
+            continue
+        if candidate.suffix.lower() not in RUNNABLE_SCRIPT_EXTS:
+            continue
+        if candidate.name == "__init__.py" or candidate.name.startswith("_"):
+            continue
+        if "__pycache__" in candidate.parts:
+            continue
+        if candidate.suffix.lower() == ".py":
+            try:
+                text = candidate.read_text(errors="ignore")
+            except Exception:
+                continue
+            if 'if __name__ == "__main__":' not in text and "if __name__ == '__main__':" not in text:
+                continue
+        if candidate.stem == stem or candidate.name == requested:
+            matches.append(candidate.resolve())
+
+    if len(matches) == 1:
+        return matches[0]
+
+    return None
+
+
+def build_skill_script_command(skill_dir: Path, script_path: Path, script_args: List[str], run_cwd: Path):
+    ext = script_path.suffix.lower()
+    if ext == ".py":
+        scripts_pkg = (skill_dir / "scripts" / "__init__.py").exists()
+        if scripts_pkg:
+            module = f"scripts.{script_path.stem}"
+            command = [sys.executable, "-m", module, *script_args]
+            execution_cwd = skill_dir
+        else:
+            command = [sys.executable, str(script_path), *script_args]
+            execution_cwd = run_cwd
+        return command, execution_cwd, None
+
+    if ext == ".sh":
+        if not shutil.which("bash"):
+            return None, None, "bash not available in PATH"
+        return ["bash", str(script_path), *script_args], run_cwd, None
+
+    if ext == ".js":
+        if not shutil.which("node"):
+            return None, None, "node not available in PATH"
+        return ["node", str(script_path), *script_args], run_cwd, None
+
+    return None, None, f"unsupported script type: {script_path.suffix}"
+
+
+def probe_skill_script(skill_dir: Path, script_path: Path) -> (bool, str):
+    """Return viability for isolated execution and a reason string."""
+    def run_probe_with_args(probe_args: List[str]):
+        command, execution_cwd, build_error = build_skill_script_command(
+            skill_dir=skill_dir,
+            script_path=script_path,
+            script_args=probe_args,
+            run_cwd=skill_dir.parent.parent,
+        )
+        if build_error:
+            return None, build_error
+
+        try:
+            proc = subprocess.run(
+                command,
+                cwd=execution_cwd,
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+        except subprocess.TimeoutExpired:
+            return None, "timed out during probe"
+        except Exception as exc:
+            return None, f"probe failed: {exc}"
+
+        output = (proc.stdout or "") + "\n" + (proc.stderr or "")
+        lowered = output.lower()
+
+        if proc.returncode == 0:
+            return True, "ok"
+
+        if proc.returncode == 2 and ("usage:" in lowered or "--help" in lowered):
+            return True, "requires positional args (but runnable)"
+
+        if "usage:" in lowered and "modulenotfounderror" not in lowered and "no module named" not in lowered:
+            return True, "requires explicit args (but runnable)"
+
+        if "modulenotfounderror" in lowered or "no module named" in lowered:
+            missing = "unknown module"
+            match = re.search(r"No module named ['\"]([^'\"]+)['\"]", output)
+            if match:
+                missing = match.group(1)
+            return False, f"missing python dependency: {missing}"
+
+        if "command not found" in lowered:
+            return False, "required runtime command not found"
+
+        if "playwright" in lowered:
+            return False, "requires playwright/browser deps"
+
+        return False, f"non-zero exit during probe ({proc.returncode})"
+
+    first_ok, first_reason = run_probe_with_args(["--help"])
+    if first_ok is True:
+        return True, first_reason
+    if first_ok is None:
+        return False, first_reason
+    if first_reason.startswith("missing ") or "runtime command" in first_reason:
+        return False, first_reason
+
+    second_ok, second_reason = run_probe_with_args([])
+    if second_ok is True:
+        return True, second_reason
+    if second_ok is None:
+        return False, second_reason
+    if second_reason.startswith("missing ") or "runtime command" in second_reason:
+        return False, second_reason
+
+    return False, second_reason
 
 
 def build_bootstrap_block() -> str:
@@ -1161,6 +1351,133 @@ def cmd_archived(args):
     return 0
 
 
+def cmd_skillscripts(args):
+    """List runnable scripts found under skills/*/scripts."""
+    global AICTX_HOME
+    AICTX_HOME = resolve_aictx_home()
+
+    skill_filter = getattr(args, "skill", None)
+    scripts = discover_skill_scripts(AICTX_HOME, skill_filter)
+
+    show_all = bool(getattr(args, "all", False))
+    skip_probe = bool(getattr(args, "no_probe", False))
+
+    if skill_filter and skill_filter not in scripts:
+        print(f"\n⚠️  No runnable scripts found for skill: {skill_filter}\n")
+        return 1
+
+    viable_map: Dict[str, List[Dict[str, str]]] = {}
+    blocked_map: Dict[str, List[Dict[str, str]]] = {}
+
+    for skill_name, script_list in scripts.items():
+        skill_dir = AICTX_HOME / "skills" / skill_name
+        for rel_script in script_list:
+            script_path = skill_dir / "scripts" / rel_script
+            if skip_probe:
+                ready, reason = True, "probe skipped"
+            else:
+                ready, reason = probe_skill_script(skill_dir, script_path)
+
+            row = {"script": rel_script, "reason": reason}
+            if ready:
+                viable_map.setdefault(skill_name, []).append(row)
+            else:
+                blocked_map.setdefault(skill_name, []).append(row)
+
+    total = sum(len(v) for v in viable_map.values())
+    blocked_total = sum(len(v) for v in blocked_map.values())
+    print("\n🧩 AI Context — Skill Scripts")
+    print(f"   Skills with scripts     : {len(scripts)}")
+    print(f"   Runnable in one request : {total}")
+    print(f"   Blocked/not isolated    : {blocked_total}\n")
+
+    for skill_name in sorted(viable_map.keys()):
+        print(f"{skill_name} ({len(viable_map[skill_name])}):")
+        for row in viable_map[skill_name]:
+            reason = row["reason"]
+            if reason == "ok" or reason == "probe skipped":
+                print(f"  - {row['script']}")
+            else:
+                print(f"  - {row['script']}  [{reason}]")
+        print()
+
+    if show_all and blocked_total:
+        print("Blocked / needs setup:")
+        for skill_name in sorted(blocked_map.keys()):
+            print(f"{skill_name} ({len(blocked_map[skill_name])}):")
+            for row in blocked_map[skill_name]:
+                print(f"  - {row['script']}  [{row['reason']}]")
+            print()
+    elif blocked_total:
+        print("Use --all to show blocked scripts and reasons.\n")
+
+    print("Usage:")
+    print("  aictx run-skill <skill> <script> [--cwd <path>] [--force] [-- <args...>]\n")
+    return 0
+
+
+def cmd_run_skill(args):
+    """Execute a script from a specific skill folder."""
+    global AICTX_HOME
+    AICTX_HOME = resolve_aictx_home()
+
+    skill = args.skill.strip()
+    script = args.script.strip()
+    skill_dir = AICTX_HOME / "skills" / skill
+
+    if not skill_dir.exists() or not skill_dir.is_dir():
+        print(f"\n❌ Skill not found: {skill}")
+        print("   Use: aictx ls skills\n")
+        return 1
+
+    script_path = resolve_skill_script(skill_dir, script)
+    if not script_path:
+        print(f"\n❌ Script not found or ambiguous: {script}")
+        print(f"   Skill: {skill}")
+        print("   Use: aictx skills-scripts <skill>\n")
+        return 1
+
+    script_args = list(args.script_args or [])
+    force_run = bool(getattr(args, "force", False))
+    if "--force" in script_args:
+        force_run = True
+        script_args = [arg for arg in script_args if arg != "--force"]
+
+    if script_args and script_args[0] == "--":
+        script_args = script_args[1:]
+
+    run_cwd = Path(args.cwd).expanduser().resolve() if args.cwd else Path.cwd()
+    if not run_cwd.exists() or not run_cwd.is_dir():
+        print(f"\n❌ Invalid cwd: {run_cwd}\n")
+        return 1
+
+    command, execution_cwd, build_error = build_skill_script_command(
+        skill_dir=skill_dir,
+        script_path=script_path,
+        script_args=script_args,
+        run_cwd=run_cwd,
+    )
+    if build_error:
+        print(f"\n❌ {build_error}\n")
+        return 1
+
+    if not force_run:
+        ready, reason = probe_skill_script(skill_dir, script_path)
+        if not ready:
+            print("\n❌ Script is not ready for isolated execution.")
+            print(f"   Reason: {reason}")
+            print("   Tip   : install dependencies or use --force to try anyway.\n")
+            return 1
+
+    print(f"\n▶ Running skill script")
+    print(f"   Skill  : {skill}")
+    print(f"   Script : {script_path}")
+    print(f"   CWD    : {execution_cwd}\n")
+
+    result = subprocess.run(command, cwd=execution_cwd)
+    return result.returncode
+
+
 
 def _ls_header(emoji: str, title: str, count: int) -> None:
     W = "[1;37m"; C = "[96m"; R = "[0m"; DIM = "[2m"
@@ -1290,6 +1607,8 @@ Examples:
     aictx archive skill x   Archive an item so it stops being processed
     aictx unarchive skill x Restore an archived item
     aictx archived          List archived items
+        aictx skills-scripts     List all detected skill scripts
+        aictx run-skill lint-and-validate lint_runner.py -- .
     aictx telemetry <path>  Analyze read_file usage per request from logs
     aictx telemetry --json  Emit machine-readable report
   aictx ls                List all skills, agents, workflows
@@ -1325,6 +1644,27 @@ Examples:
     p_archived = sub.add_parser("archived", help="List archived resources")
     p_archived.add_argument("kind", nargs="?", help="Optional type filter")
     p_archived.set_defaults(func=cmd_archived)
+
+    p_skill_scripts = sub.add_parser("skills-scripts", help="List runnable scripts from skills")
+    p_skill_scripts.add_argument("skill", nargs="?", help="Optional skill filter")
+    p_skill_scripts.add_argument("--all", action="store_true", help="Also show blocked scripts with reasons")
+    p_skill_scripts.add_argument("--no-probe", action="store_true", help="Skip runtime viability probing")
+    p_skill_scripts.set_defaults(func=cmd_skillscripts)
+
+    # Backward compatible alias (deprecated)
+    p_skill_scripts_legacy = sub.add_parser("skillscripts", help="Alias of skills-scripts (deprecated)")
+    p_skill_scripts_legacy.add_argument("skill", nargs="?", help="Optional skill filter")
+    p_skill_scripts_legacy.add_argument("--all", action="store_true", help="Also show blocked scripts with reasons")
+    p_skill_scripts_legacy.add_argument("--no-probe", action="store_true", help="Skip runtime viability probing")
+    p_skill_scripts_legacy.set_defaults(func=cmd_skillscripts)
+
+    p_run_skill = sub.add_parser("run-skill", help="Run a script from a skill")
+    p_run_skill.add_argument("skill", help="Skill folder name")
+    p_run_skill.add_argument("script", help="Script file name (or stem)")
+    p_run_skill.add_argument("--cwd", help="Execution working directory (default: current dir)")
+    p_run_skill.add_argument("--force", action="store_true", help="Run even if isolation probe fails")
+    p_run_skill.add_argument("script_args", nargs=argparse.REMAINDER, help="Arguments passed to the skill script")
+    p_run_skill.set_defaults(func=cmd_run_skill)
 
     sub.add_parser("status",    help="Show link status").set_defaults(func=cmd_status)
     sub.add_parser("uninstall", help="Remove all managed links").set_defaults(func=cmd_uninstall)
