@@ -1,4 +1,5 @@
 ---
+version: 1.0.0
 name: react-best-practices
 description: React patterns, hooks discipline, component design and state management best practices. Use this skill whenever the user is building React components, managing state, writing custom hooks, or designing component architecture. Triggers on component, hooks, useState, useEffect, JSX, re-render, state management.
 ---

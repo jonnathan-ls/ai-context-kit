@@ -1,4 +1,5 @@
 ---
+version: 1.0.0
 name: game-development
 description: Game development orchestrator. Routes to platform-specific skills based on project needs. Use this skill whenever the user is building a game for any platform — web, mobile, PC, or VR. Triggers on game, Unity, Godot, Phaser, game loop, sprite, tilemap, multiplayer, game design, player input.
 ---

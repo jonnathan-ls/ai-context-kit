@@ -3,6 +3,7 @@ name: language-policy
 description: Language policy for chat responses vs generated documents. Chat responses stay in Portuguese; all created/updated files and documents must be in English.
 type: rule
 priority: P0
+trigger: always_on
 ---
 
 # Language Policy

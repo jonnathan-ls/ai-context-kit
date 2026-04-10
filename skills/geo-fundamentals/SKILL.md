@@ -1,4 +1,5 @@
 ---
+version: 1.0.0
 name: geo-fundamentals
 description: Generative Engine Optimization (GEO) specialist. Use this skill whenever the user wants their content to be cited by AI-powered search engines like ChatGPT, Claude, Perplexity, or Gemini. Triggers on "GEO", "AI search", "cited by AI", "Perplexity ranking", "ChatGPT mentions", "AI citations", "generative search", "llms.txt", "get cited in AI responses", "show up in ChatGPT". Covers content structure, entity building, schema markup, AI crawler access, and citation measurement.
 ---

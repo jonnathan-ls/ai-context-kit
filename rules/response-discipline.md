@@ -14,14 +14,15 @@ Respond only to what was asked.
 
 ## Scope Rules
 
-Classify each request before responding:
+Classify each request before responding (see canonical types in ALWAYS.md → REQUEST CLASSIFIER):
 
-| Intent | Output |
-|--------|--------|
-| Question | Direct explanation |
-| Review | Findings and risks |
-| Plan | Structured plan, no implementation |
-| Task (`fix`, `add`, `change`, `create`) | Implement requested scope |
+| Intent | Keywords | Output |
+|--------|----------|--------|
+| **Question** | "what is", "how", "why", "explain" | Direct explanation — no code unless asked |
+| **Simple task** | "fix", "add", "change" | Targeted edit — no scope expansion |
+| **Complex task** | "build", "create", "implement", "refactor" | Agent + skill → implement |
+| **Plan** | "plan", "outline", "strategy" | Structured breakdown — no implementation |
+| **Review** | "review", "check", "audit" | Findings and risks — no rewrites unless asked |
 
 Hard boundaries:
 - No scope expansion without user request.

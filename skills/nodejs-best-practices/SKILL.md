@@ -1,4 +1,5 @@
 ---
+version: 1.0.0
 name: nodejs-best-practices
 description: Node.js development principles and decision-making. Framework selection, async patterns, security, and architecture. Use this skill whenever the user is building Node.js services, choosing frameworks, handling async patterns, or applying backend security. Triggers on Node.js, Express, Fastify, async, event loop, middleware, npm, backend.
 ---

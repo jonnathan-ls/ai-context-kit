@@ -1,4 +1,5 @@
 ---
+version: 1.0.0
 name: token-management
 description: Token-efficient request processing without reducing task quality. Use this skill whenever the user request is long, multi-part, repetitive, or likely to consume high context window. Also use when optimizing prompts, reducing token costs, preserving output fidelity, or handling large conversational history. Trigger even if the user does not explicitly mention tokens when context compression would improve efficiency.
 allowed-tools: Read, Glob, Grep, Bash

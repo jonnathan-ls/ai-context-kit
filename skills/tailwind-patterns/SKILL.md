@@ -1,4 +1,5 @@
 ---
+version: 1.0.0
 name: tailwind-patterns
 description: Tailwind CSS v4 specialist. Use this skill whenever the user is building or styling UI with Tailwind CSS — including v4 migration, CSS-first configuration, container queries, design tokens, and dark mode patterns. Triggers on "Tailwind", "tailwind v4", "CSS classes", "design tokens", "container queries", "dark mode Tailwind", "utility classes", "Tailwind config".
 ---

@@ -1,4 +1,5 @@
 ---
+version: 1.0.0
 name: knowledge-integrator
 description: Documentation synchronization specialist. Use this skill whenever a structural decision, architectural change, new persona, business pivot, or important rule has been established in the chat and the project's base documentation files may now be outdated. Triggers on "update the docs", "we decided to change", "new rule going forward", "add this to the architecture", "our persona changed", "keep the docs in sync". Identifies impacted files, generates a precise diff proposal, and waits for explicit user approval before applying any changes.
 ---

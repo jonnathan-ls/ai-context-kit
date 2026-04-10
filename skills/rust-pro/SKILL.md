@@ -1,4 +1,5 @@
 ---
+version: 1.0.0
 name: rust-pro
 description: Master Rust 1.75+ with modern async patterns, advanced type system features, and production-ready systems programming. Use this skill whenever the user is writing Rust code, solving ownership or lifetime issues, building async services, or optimizing systems performance. Triggers on Rust, ownership, lifetimes, Tokio, async/await, borrow checker, unsafe, cargo.
 ---

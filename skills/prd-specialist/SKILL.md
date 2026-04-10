@@ -1,4 +1,5 @@
 ---
+version: 1.0.0
 name: prd-specialist
 description: AI product requirements specialist for converting a raw idea into an implementation-ready PRD. Use this whenever the user asks to create, structure, refine, or validate a PRD, feature spec, or implementation scope for an AI-built product, including requirements, non-requirements, user flows, constraints, acceptance criteria, and delivery milestones.
 ---

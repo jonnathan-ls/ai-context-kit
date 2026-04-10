@@ -1,4 +1,5 @@
 ---
+version: 1.0.0
 name: mcp-builder
 description: MCP (Model Context Protocol) server building principles. Tool design, resource patterns, best practices. Use this skill whenever the user is building an MCP server, designing tools or resources for AI integration, or configuring Claude Desktop connections. Triggers on MCP, Model Context Protocol, tool design, MCP server, stdio transport, SSE.
 ---

@@ -1,4 +1,5 @@
 ---
+version: 1.0.0
 name: idea-structurer
 description: Business idea structuring specialist. Use this skill whenever the user has an abstract idea for an app, software, or digital business and needs help turning it into a structured, concrete business model. Triggers on "tenho uma ideia", "quero criar um app", "não sei por onde começar", "quero montar um negócio digital", "modelo de negócio", "como monetizar", "qual o MVP". Conducts a Socratic brainstorming session and compiles the output into a Lean Canvas or Business Model Canvas with a concrete action plan.
 ---

@@ -1,4 +1,5 @@
 ---
+version: 1.0.0
 name: pain-to-product
 description: Entrepreneurial brainstorm specialist. Use this skill whenever the user describes a problem, pain point, frustration, or unmet need — especially when they want to explore business opportunities, product ideas, or digital solutions. Triggers on problem, pain point, business opportunity, startup idea, product idea, JTBD, Blue Ocean, digital solution, brainstorm, unmet need.
 ---

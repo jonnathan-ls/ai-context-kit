@@ -27,12 +27,14 @@ Before touching any file:
 
 ## Task Complexity Tiers
 
-| Tier | Signals | Required Action |
-|------|---------|-----------------|
-| **0 — Question** | "what is", "explain", "why" | Text only — no code |
-| **1 — Simple** | Single file, < 20 lines change | Inline edit |
-| **2 — Moderate** | Multiple files, clear scope | Plan summary → edit |
-| **3 — Complex** | New feature, architecture, refactor | Agent + Skill → phased plan → implement |
+Maps to canonical request types defined in ALWAYS.md → REQUEST CLASSIFIER.
+
+| Tier | Request Type | Signals | Required Action |
+|------|-------------|---------|-----------------|
+| **0** | Question | "what is", "explain", "why" | Text only — no code |
+| **1** | Simple task | Single file, < 20 lines change | Inline edit |
+| **2** | Complex task / Plan | Multiple files, clear scope | Plan summary → edit |
+| **3** | Complex task | New feature, architecture, refactor | Agent + Skill → phased plan → implement |
 
 ## Pre-Edit Check
 

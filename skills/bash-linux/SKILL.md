@@ -1,6 +1,7 @@
 ---
+version: 1.0.0
 name: bash-linux
-description: Bash/Linux terminal patterns. Critical commands, piping, error handling, scripting. Use when working on macOS or Linux systems.
+description: Bash/Linux terminal patterns for shell scripting, pipelines, and system automation. Use when writing bash scripts, running terminal commands, handling errors in shell, working with files and processes, or automating tasks on macOS or Linux. Triggers on bash, shell, script, cron, pipe, grep, awk, sed, chmod, systemd, terminal.
 ---
 
 # Bash Linux Patterns

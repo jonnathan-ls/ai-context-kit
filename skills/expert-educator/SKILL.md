@@ -1,4 +1,5 @@
 ---
+version: 1.0.0
 name: expert-educator
 description: Pedagogical mentor specialized in explaining complex technical concepts clearly and accessibly. Use this skill whenever the user expresses confusion, asks "how does this work?", "why is it done this way?", or needs a deep conceptual explanation. Triggers on explain, understand, how does, why, teach me, analogy, concept, I don't get it.
 ---

@@ -1,4 +1,5 @@
 ---
+version: 1.0.0
 name: powershell-windows
 description: PowerShell Windows patterns. Critical pitfalls, operator syntax, error handling. Use this skill whenever the user is writing or debugging PowerShell scripts, automating Windows tasks, or handling Windows-specific scripting patterns. Triggers on PowerShell, .ps1, Windows scripting, cmdlet, Get-Item, Set-StrictMode.
 ---

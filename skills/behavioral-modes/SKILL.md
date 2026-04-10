@@ -1,6 +1,7 @@
 ---
+version: 1.0.0
 name: behavioral-modes
-description: AI operational modes (brainstorm, implement, debug, review, teach, ship, orchestrate). Use to adapt behavior based on task type.
+description: AI operational modes for adapting behavior based on task type. Defines 7 modes: BRAINSTORM (explore ideas), IMPLEMENT (write code), DEBUG (investigate issues), REVIEW (analyze quality), TEACH (explain concepts), SHIP (production-ready delivery), ORCHESTRATE (multi-agent coordination). Use to explicitly set the AI's working mode for a session or task.
 ---
 
 # Behavioral Modes - Adaptive AI Operating Modes

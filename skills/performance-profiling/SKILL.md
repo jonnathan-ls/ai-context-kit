@@ -1,4 +1,5 @@
 ---
+version: 1.0.0
 name: performance-profiling
 description: Performance profiling principles. Measurement, analysis, and optimization techniques. Use this skill whenever the user needs to profile application performance, measure Core Web Vitals, analyze bundle size, or identify bottlenecks. Triggers on performance, profiling, Lighthouse, LCP, bundle size, memory leak, slow, optimize.
 ---

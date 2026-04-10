@@ -1,4 +1,5 @@
 ---
+version: 1.0.0
 name: pilulafeed
 description: Executes the PilulaFeed automated publishing pipeline in chat-driven mode. Claude acts as the LLM layer for all agents. No external API needed. Invokes with `/pilulafeed --spec <file>`.
 license: MIT

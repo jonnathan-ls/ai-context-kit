@@ -1,4 +1,5 @@
 ---
+version: 1.0.0
 name: webapp-testing
 description: Web application testing specialist. Use this skill whenever the user needs to test a web app end-to-end, set up Playwright, audit critical user flows, or design a testing strategy for a web project. Triggers on "test my web app", "Playwright", "E2E test", "browser test", "test user flows", "automation testing", "test the frontend", "audit the app".
 ---

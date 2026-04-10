@@ -1,4 +1,5 @@
 ---
+version: 1.0.0
 name: app-builder
 description: Full-stack application building orchestrator. Use this skill whenever the user wants to build a new application from scratch or add major features to an existing one. Triggers on "build an app", "create a project", "make a SaaS", "scaffold a Next.js app", "build an API", "create a mobile app", "new project", "build a clone of", "start an app from scratch". Detects project type, selects the appropriate tech stack, scaffolds the structure, and coordinates specialist agents for each domain.
 ---

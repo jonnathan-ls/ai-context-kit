@@ -1,4 +1,5 @@
 ---
+version: 1.0.0
 name: seo-fundamentals
 description: SEO strategy and implementation specialist. Use this skill whenever the user needs to improve search engine visibility, fix technical SEO issues, optimize content for Google, or understand E-E-A-T and Core Web Vitals. Triggers on "improve SEO", "rank higher on Google", "meta tags", "sitemap", "core web vitals", "page speed", "schema markup", "title tag", "backlinks", "crawling issues", "robots.txt", "canonical", "E-E-A-T". Covers technical SEO, content strategy, schema markup, and measurement.
 ---

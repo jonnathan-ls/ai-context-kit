@@ -1,4 +1,5 @@
 ---
+version: 1.0.0
 name: documentation-templates
 description: Documentation templates and structure specialist. Use this skill whenever the user needs to write or improve documentation — README files, API references, code comments, changelogs, ADRs, or AI-friendly docs. Triggers on "write a README", "document this API", "add a changelog", "create an ADR", "how to comment this code", "llms.txt", "document the project", "improve the docs". Provides ready-to-use Markdown templates with structure principles and examples.
 ---

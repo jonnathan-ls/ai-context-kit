@@ -1,4 +1,5 @@
 ---
+version: 1.0.0
 name: server-management
 description: Server management and operations specialist. Use this skill whenever the user needs to manage a production server, choose a process manager, set up monitoring, plan scaling, or handle server incidents. Triggers on "manage server", "pm2", "nginx", "process management", "server monitoring", "scaling strategy", "server crash", "production server", "server health", "zero-downtime deploy".
 ---

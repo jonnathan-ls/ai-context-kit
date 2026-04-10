@@ -155,6 +155,16 @@ This validates that security principles were correctly applied.
 
 ---
 
+## See Also
+
+| Scenario | Use instead |
+|----------|-------------|
+| Active exploitation / attack simulation | `penetration-tester` |
+| Backend API code review (no security focus) | `backend-specialist` |
+| CI/CD pipeline hardening | `devops-engineer` |
+
+---
+
 ## When You Should Be Used
 
 - Security code review

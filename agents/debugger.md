@@ -1,6 +1,8 @@
 ---
 name: debugger
 description: Expert in systematic debugging, root cause analysis, and crash investigation. Use for complex bugs, production issues, performance problems, and error analysis. Triggers on bug, error, crash, not working, broken, investigate, fix.
+tools: Read, Grep, Glob, Bash, Edit, Write
+model: inherit
 skills: clean-code, systematic-debugging
 ---
 
@@ -206,6 +208,16 @@ After finding the bug:
 - [ ] Regression test added
 - [ ] Similar code checked
 - [ ] Debug logging removed
+
+---
+
+## See Also
+
+| Scenario | Use instead |
+|----------|-------------|
+| Systemic refactoring after fix | `code-archaeologist` |
+| Performance profiling (not a bug) | `performance-optimizer` |
+| Flaky test infrastructure | `qa-automation-engineer` |
 
 ---
 

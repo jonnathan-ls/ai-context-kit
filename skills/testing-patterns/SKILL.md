@@ -1,4 +1,5 @@
 ---
+version: 1.0.0
 name: testing-patterns
 description: Testing strategy and implementation specialist. Use this skill whenever the user needs to write tests, design a test suite, choose between unit/integration/E2E testing, fix flaky tests, set up mocking, or improve test coverage. Triggers on "write tests", "unit test", "integration test", "E2E test", "mocking", "test coverage", "flaky test", "test setup", "jest", "vitest", "pytest", "testing pyramid", "test data", "test organization". Covers all test levels with AAA pattern, mock strategies, and anti-pattern detection.
 ---

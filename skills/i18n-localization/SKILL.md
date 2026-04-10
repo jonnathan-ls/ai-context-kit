@@ -1,4 +1,5 @@
 ---
+version: 1.0.0
 name: i18n-localization
 description: Internationalization and localization patterns. Detecting hardcoded strings, managing translations, locale files, RTL support. Use this skill whenever the user needs to add multi-language support, detect untranslated strings, or configure locale-aware formatting. Triggers on i18n, l10n, translation, locale, RTL, hardcoded strings, react-i18next, next-intl.
 ---

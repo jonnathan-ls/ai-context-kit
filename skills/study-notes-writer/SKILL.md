@@ -1,4 +1,5 @@
 ---
+version: 1.0.0
 name: study-notes-writer
 description: Proactive study notes generator. Use this skill whenever a technical concept has been explained and understood in a learning or educational interaction. Triggers on "entendi", "faz sentido", explicit study note requests, or when expert-educator completes an explanation. Converts knowledge established in chat into structured, persistent Markdown notes inside a studies/ directory, organized by domain and numbered sequentially.
 ---

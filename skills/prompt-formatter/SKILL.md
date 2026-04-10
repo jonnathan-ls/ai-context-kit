@@ -1,4 +1,5 @@
 ---
+version: 1.0.0
 name: prompt-formatter
 description: Prompt engineering specialist using the COSTAR framework. Transforms raw, vague requests into structured, context-rich prompts for LLMs. Use this skill whenever the user needs to improve a prompt, structure a request for an AI model, or apply prompt engineering best practices. Triggers on prompt, COSTAR, prompt engineering, improve my prompt, structure this request.
 ---

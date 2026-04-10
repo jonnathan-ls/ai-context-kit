@@ -1,4 +1,5 @@
 ---
+version: 1.0.0
 name: refactoring-patterns
 description: Safe refactoring techniques — extract, rename, decompose without breaking behavior. Use this skill whenever the user needs to restructure existing code safely, improve readability, or eliminate duplication without changing behavior. Triggers on refactor, extract, rename, clean up, restructure, decompose.
 ---

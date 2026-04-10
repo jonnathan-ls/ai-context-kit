@@ -1,4 +1,5 @@
 ---
+version: 1.0.0
 name: deployment-procedures
 description: Production deployment principles and decision-making. Safe deployment workflows, rollback strategies, and verification. Use this skill whenever the user is deploying to production, planning a release, setting up CI/CD, or designing rollback strategies. Triggers on deploy, release, rollback, CI/CD, production, pipeline, zero-downtime.
 ---

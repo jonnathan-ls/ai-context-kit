@@ -1,4 +1,5 @@
 ---
+version: 1.0.0
 name: database-design
 description: Database design principles and decision-making. Schema design, indexing strategy, ORM selection, serverless databases. Use this skill whenever the user needs to design a schema, choose a database or ORM, plan indexes, or optimize queries. Triggers on database, schema, indexing, ORM, PostgreSQL, SQLite, migration, N+1.
 ---

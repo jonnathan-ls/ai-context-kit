@@ -173,13 +173,28 @@ def scan_resources(aictx_home: Path) -> dict:
 
     agents_dir = aictx_home / "agents"
     if agents_dir.exists():
+        _AGENTS_EXCLUDE = {"agents", "readme", "index", "template"}
         for f in sorted(agents_dir.glob("*.md")):
+            if f.stem.startswith("_") or f.stem.lower() in _AGENTS_EXCLUDE:
+                continue  # skip _TEMPLATE.md, AGENTS.md, and similar internal files
             fm = read_frontmatter(f)
             result["agents"].append({
                 "name": f.stem,
                 "description": fm.get("description", ""),
                 "skills": fm.get("skills", ""),
             })
+        # Also detect directory-based agents (e.g. agent-name/agent.md)
+        for d in sorted(agents_dir.iterdir()):
+            if d.is_dir() and not d.name.startswith("_"):
+                agent_file = d / "agent.md"
+                if agent_file.exists():
+                    fm = read_frontmatter(agent_file)
+                    result["agents"].append({
+                        "name": d.name,
+                        "description": fm.get("description", ""),
+                        "skills": fm.get("skills", ""),
+                        "type": "directory",
+                    })
 
     workflows_dir = aictx_home / "workflows"
     if workflows_dir.exists():
@@ -1593,6 +1608,61 @@ def cmd_init(args):
     return 0
 
 
+def cmd_agents(_args):
+    """List all agents with domains and trigger keywords extracted from descriptions."""
+    AICTX_HOME = resolve_aictx_home()
+    resources = scan_resources(AICTX_HOME)
+    agents = sorted(resources["agents"], key=lambda x: x["name"])
+
+    C = "\033[96m"; DIM = "\033[2m"; R = "\033[0m"; B = "\033[1m"
+    W = "\033[2m"
+
+    print(f"\n{B}🤖 AGENTS{R}  ({len(agents)} total)\n")
+    print(f"  {'Agent':<30} {'Description':<60}")
+    print(f"  {'─'*30} {'─'*60}")
+
+    for a in agents:
+        name = a["name"]
+        desc = a.get("description", "")
+        agent_type = a.get("type", "")
+        type_badge = f" {DIM}[dir]{R}" if agent_type == "directory" else ""
+        # Truncate description for display
+        display_desc = desc[:58] + ".." if len(desc) > 60 else desc
+        print(f"  {C}{name:<30}{R}{type_badge} {DIM}{display_desc}{R}")
+
+    print(f"\n{W}{'─' * 56}{R}")
+    print(f"{DIM}  Tip: See agents/AGENTS.md for full routing table with trigger keywords{R}\n")
+    return 0
+
+
+def cmd_audit(args):
+    """Run skill-quality-auditor across all skills and report health scores."""
+    AICTX_HOME = resolve_aictx_home()
+    skills_dir = AICTX_HOME / "skills"
+    auditor_script = skills_dir / "skill-quality-auditor" / "scripts" / "audit_skills.py"
+
+    if not auditor_script.exists():
+        print(f"\n❌ Auditor script not found: {auditor_script}")
+        print(f"   Make sure the skill-quality-auditor skill is installed.\n")
+        return 1
+
+    import subprocess
+    target = args.skill if getattr(args, "skill", None) else None
+    cmd = ["python3", str(auditor_script)]
+    if target:
+        cmd += ["--skill", target]
+    if getattr(args, "json", False):
+        cmd += ["--json"]
+    if getattr(args, "output", None):
+        cmd += ["--output", args.output]
+
+    print(f"\n🔍 AI Context — Skill Audit")
+    print(f"   Source: {skills_dir}\n")
+
+    result = subprocess.run(cmd, cwd=str(AICTX_HOME))
+    return result.returncode
+
+
 def main():
     parser = argparse.ArgumentParser(
         prog="aictx",
@@ -1669,6 +1739,13 @@ Examples:
     sub.add_parser("status",    help="Show link status").set_defaults(func=cmd_status)
     sub.add_parser("uninstall", help="Remove all managed links").set_defaults(func=cmd_uninstall)
     sub.add_parser("config",    help="Show configuration").set_defaults(func=cmd_config)
+    sub.add_parser("agents",    help="List agents with descriptions (routing quick-reference)").set_defaults(func=cmd_agents)
+
+    p_audit = sub.add_parser("audit", help="Run skill-quality-auditor across all skills")
+    p_audit.add_argument("skill", nargs="?", help="Audit a single skill by name (default: all)")
+    p_audit.add_argument("--json", action="store_true", help="Output results as JSON")
+    p_audit.add_argument("--output", help="Save report to a file path")
+    p_audit.set_defaults(func=cmd_audit)
 
     p_ls = sub.add_parser("ls", help="List available skills, agents, or workflows")
     p_ls.add_argument("kind", nargs="?", choices=["skills", "agents", "workflows"], help="What to list (default: all)")

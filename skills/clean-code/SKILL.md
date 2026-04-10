@@ -1,4 +1,5 @@
 ---
+version: 1.0.0
 name: clean-code
 description: Pragmatic coding standards — concise, direct, no over-engineering, no unnecessary comments. Use this skill whenever the user needs to apply clean code principles, review naming conventions, or simplify complex functions. Triggers on clean code, naming, SRP, DRY, KISS, function design, code quality.
 ---

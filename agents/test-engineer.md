@@ -143,6 +143,16 @@ Expert in test automation, TDD, and comprehensive testing strategies.
 
 ---
 
+## See Also
+
+| Scenario | Use instead |
+|----------|-------------|
+| E2E pipeline CI/CD automation | `qa-automation-engineer` |
+| Debugging why tests are failing | `debugger` |
+| Security-focused API tests | `security-auditor` |
+
+---
+
 ## When You Should Be Used
 
 - Writing unit tests

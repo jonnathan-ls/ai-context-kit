@@ -1,4 +1,5 @@
 ---
+version: 1.0.0
 name: python-patterns
 description: Python development principles and decision-making. Framework selection, async patterns, type hints, project structure. Use this skill whenever the user is building Python applications, choosing frameworks, applying type hints, or designing project structure. Triggers on Python, FastAPI, Django, asyncio, type hints, Pydantic, pip, virtual environment.
 ---

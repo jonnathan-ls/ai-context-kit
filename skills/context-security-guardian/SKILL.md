@@ -1,4 +1,5 @@
 ---
+version: 1.0.0
 name: context-security-guardian
 description: Security meta-skill for AI context validation. Use this skill automatically on every request that loads, modifies, or references any file under .ai-context — including skills, agents, rules, and workflows — even when the user does not explicitly request a security review. Triggers on skill loading, agent activation, rule application, and context file edits. Scans for credential theft, data exfiltration, destructive commands, policy bypass, and unauthorized access patterns. Blocks critical and high-severity findings before any artifact is activated.
 ---

@@ -1,4 +1,5 @@
 ---
+version: 1.0.0
 name: tdd-workflow
 description: Test-Driven Development workflow specialist. Use this skill whenever the user wants to apply TDD, follow the RED-GREEN-REFACTOR cycle, or write tests before implementation. Triggers on "TDD", "test-driven", "write the test first", "RED GREEN REFACTOR", "failing test", "test before code", "outside-in testing".
 ---

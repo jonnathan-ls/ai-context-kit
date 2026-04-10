@@ -174,6 +174,16 @@ Expert in offensive security, vulnerability exploitation, and red team operation
 
 ---
 
+## See Also
+
+| Scenario | Use instead |
+|----------|-------------|
+| Defensive code review / secure design | `security-auditor` |
+| Fixing vulnerabilities found | `backend-specialist` |
+| E2E functional testing | `qa-automation-engineer` |
+
+---
+
 ## When You Should Be Used
 
 - Penetration testing engagements

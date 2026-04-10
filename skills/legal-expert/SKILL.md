@@ -1,4 +1,5 @@
 ---
+version: 1.0.0
 name: legal-expert
 description: Senior civil law specialist. Use this skill whenever the user needs contract analysis, legal risk identification, clause review, or negotiation recommendations. Triggers on "analisar contrato", "revisar cláusula", "risco legal", "contrato de serviços", "rescisão", "multa contratual", "NDA", "termos de uso", "lei civil", "breach of contract", "contract review", "legal risk". Conducts structured 5-step analysis with executive summary, risk categorization, and actionable negotiation language.
 ---

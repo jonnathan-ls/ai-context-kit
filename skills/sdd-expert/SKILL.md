@@ -1,4 +1,5 @@
 ---
+version: 1.0.0
 name: sdd-expert
 description: Specification-Driven Development (SDD) Specialist. Use this skill whenever the user has a Product Requirements Document (PRD) or feature idea and needs to design the technical architecture, map out technical specs, identify high-priority AI/Agent workflows, or create detailed implementation specifications for AI coding agents. Triggers on "create spec", "technical specifications", "SDD", "architectural spec", "review PRD for specs", or "map out components".
 ---
