@@ -1,6 +1,7 @@
 ---
 version: 1.0.0
 name: intelligent-routing
+tag: meta
 description: Automatic agent selection and intelligent task routing. Use this skill on every user request to silently analyze intent, detect domains, assess complexity, and select the best specialist agent without requiring explicit user commands. Triggers automatically — no user keyword needed. Handles single-domain tasks (direct agent), multi-domain tasks (orchestrator), and edge cases like vague requests or contradictory signals. Always announces the selected agent before responding.
 ---
 
