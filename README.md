@@ -69,6 +69,7 @@ aictx doctor                # Validate integrity (broken refs, orphans)
 | Command | Description |
 |---------|-------------|
 | `aictx sync` | Scan resources, regenerate ALWAYS.md + update Copilot instructions |
+| `aictx context` | Manage AI context enable/disable state (see [Context Control](#-context-control) below) |
 | `aictx install` | Interactive link installation |
 | `aictx install --all` | Install all targets and resources |
 | `aictx install --force` | Overwrite existing links |
@@ -135,6 +136,71 @@ Report includes:
 - Lines requested
 - Estimated tokens (`chars / 4` heuristic)
 - Per-request breakdown
+
+## 🎛️ Context Control
+
+Temporarily disable AI context processing to save tokens and focus on pure AI processing without context overhead.
+
+### Commands
+
+```bash
+# Check current state
+aictx context status
+
+# Disable context (AI tools won't load skills, agents, rules, workflows)
+aictx context disable
+
+# Re-enable context
+aictx context enable
+
+# Toggle between enabled and disabled
+aictx context toggle
+
+# After changing state, regenerate ALWAYS.md
+aictx sync
+```
+
+### Use Cases
+
+- **Token optimization**: Disable context when you want the AI to process requests without consuming tokens on loaded context
+- **Focus mode**: Work with pure AI reasoning without framework overhead
+- **Temporary control**: Quickly enable/disable without removing the entire context structure
+- **Manual control**: Give users fine-grained control over when context is processed
+
+### Example Workflow
+
+```bash
+# Check what's enabled
+aictx context status
+# ✅ ENABLED
+#    Context is active. AI tools will process skills, agents, rules, and workflows.
+
+# Disable for a focused session
+aictx context disable
+# ⏸️  AI Context — DISABLED
+#    Run 'aictx sync' to regenerate ALWAYS.md
+
+# Regenerate ALWAYS.md with minimal disabled stub
+aictx sync
+# 🔄 AI Context — Sync
+# ✅ ALWAYS.md regenerated
+
+# Re-enable when you're done
+aictx context enable
+aictx sync
+```
+
+### State File
+
+Context state is stored in `.aictx_state.json` (auto-created):
+
+```json
+{
+  "context_enabled": true
+}
+```
+
+When context is **disabled**, ALWAYS.md contains only a minimal stub that informs AI tools the context is inactive, allowing them to proceed without processing any skills, agents, rules, or workflows.
 
 ## 🤖 Supported AI Tools
 

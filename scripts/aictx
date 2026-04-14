@@ -7,6 +7,7 @@ Manages symbolic links from ~/.ai-context resources to AI tools
 
 Commands:
     aictx sync              Scan resources and regenerate ALWAYS.md
+    aictx context           Enable/disable/toggle/status of AI context processing
     aictx install           Interactive installation of links
     aictx install --all     Install all targets and resources
     aictx install --force   Overwrite existing links
@@ -33,6 +34,7 @@ from typing import Dict, List, Optional
 
 HOME = Path.home()
 AICTX_HOME = Path(os.environ.get("AICTX_HOME", HOME / ".ai-context"))
+STATE_FILE = AICTX_HOME / ".aictx_state.json"
 
 RESOURCES = ["rules", "skills", "agents", "workflows"]
 
@@ -114,6 +116,31 @@ TARGETS = {
 
 def resolve_aictx_home() -> Path:
     return Path(__file__).resolve().parent.parent
+
+
+def read_context_state() -> dict:
+    """Read the current context state from .aictx_state.json."""
+    global STATE_FILE
+    if not STATE_FILE.exists():
+        return {"context_enabled": True}
+    try:
+        return json.load(open(STATE_FILE))
+    except Exception:
+        return {"context_enabled": True}
+
+
+def write_context_state(state: dict) -> None:
+    """Write the context state to .aictx_state.json."""
+    global STATE_FILE
+    STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
+    with open(STATE_FILE, "w") as f:
+        json.dump(state, f, indent=2)
+
+
+def is_context_enabled() -> bool:
+    """Check if the AI context is enabled."""
+    state = read_context_state()
+    return state.get("context_enabled", True)
 
 
 def read_frontmatter(filepath: Path) -> dict:
@@ -513,9 +540,29 @@ def build_context_size_audit(aictx_home: Path, resources: dict) -> str:
     return "\n".join(audit)
 
 def build_always_md(aictx_home: Path, resources: dict) -> str:
-    """Generate ALWAYS.md — hybrid: minimal protocol + embedded rule files."""
+    """Generate ALWAYS.md — hybrid: minimal protocol + embedded rule files.
+    
+    If context is disabled, returns a minimal disabled stub.
+    """
     from datetime import datetime
     now = datetime.now().strftime("%Y-%m-%d %H:%M")
+    
+    # Check if context is disabled
+    if not is_context_enabled():
+        return (
+            "---\n"
+            "trigger: always_on\n"
+            'applyTo: "**"\n'
+            "---\n\n"
+            "# AI CONTEXT — DISABLED\n\n"
+            "> **AI Context is currently DISABLED.**\n"
+            "> Use `aictx context enable` to re-enable it.\n\n"
+            "To re-enable processing of skills, agents, rules, and workflows, run:\n\n"
+            "```bash\naictx context enable\n```\n\n"
+            "**Note:** While disabled, AI tools will not process any context from ~/.ai-context.\n"
+            "This allows you to focus on pure AI processing without token consumption from loaded context.\n"
+        )
+    
     bootstrap = build_bootstrap_block()
 
     # Meta-skills: tag=meta in SKILL.md frontmatter
@@ -1695,6 +1742,51 @@ def cmd_audit(args):
     return result.returncode
 
 
+def cmd_context(args):
+    """Manage AI context enable/disable state."""
+    action = args.action if hasattr(args, "action") else None
+    
+    if action == "enable":
+        state = read_context_state()
+        state["context_enabled"] = True
+        write_context_state(state)
+        print("\n✅ AI Context — ENABLED")
+        print("   Context will be processed by AI tools (skills, agents, rules, workflows)")
+        print("   Run 'aictx sync' to regenerate ALWAYS.md\n")
+        
+    elif action == "disable":
+        state = read_context_state()
+        state["context_enabled"] = False
+        write_context_state(state)
+        print("\n⏸️  AI Context — DISABLED")
+        print("   AI tools will not process context from ~/.ai-context")
+        print("   This saves token consumption when focusing on pure AI processing")
+        print("   Run 'aictx sync' to regenerate ALWAYS.md\n")
+        
+    elif action == "toggle":
+        state = read_context_state()
+        current = state.get("context_enabled", True)
+        state["context_enabled"] = not current
+        write_context_state(state)
+        new_state = "ENABLED" if state["context_enabled"] else "DISABLED"
+        print(f"\n🔄 AI Context — {new_state}")
+        print("   Run 'aictx sync' to regenerate ALWAYS.md\n")
+        
+    elif action == "status":
+        state = read_context_state()
+        current = state.get("context_enabled", True)
+        status_str = "✅ ENABLED" if current else "⏸️  DISABLED"
+        print(f"\n{status_str}\n")
+        if current:
+            print("   Context is active. AI tools will process skills, agents, rules, and workflows.")
+        else:
+            print("   Context is inactive. AI tools will not process context from ~/.ai-context.")
+            print("   Use 'aictx context enable' to re-enable.")
+        print()
+    else:
+        print("\nUsage: aictx context {enable|disable|toggle|status}\n")
+
+
 def main():
     parser = argparse.ArgumentParser(
         prog="aictx",
@@ -1725,6 +1817,10 @@ Examples:
     sub = parser.add_subparsers(dest="command")
     sub.add_parser("sync",      help="Scan resources and regenerate ALWAYS.md").set_defaults(func=cmd_sync)
     sub.add_parser("doctor",    help="Validate integrity of ai-context resources").set_defaults(func=cmd_doctor)
+
+    p_context = sub.add_parser("context", help="Enable/disable AI context processing")
+    p_context.add_argument("action", choices=["enable", "disable", "toggle", "status"], help="Context action")
+    p_context.set_defaults(func=cmd_context)
 
     p_add = sub.add_parser("add", help="Scaffold a new skill or agent")
     p_add.add_argument("kind", choices=["skill", "agent"], help="What to create")
