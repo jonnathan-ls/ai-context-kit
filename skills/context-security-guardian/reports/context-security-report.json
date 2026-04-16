@@ -1,11 +1,11 @@
 {
   "meta": {
     "context_root": ".",
-    "generated_at": "2026-03-26T03:31:32.688860+00:00",
+    "generated_at": "2026-04-16T18:42:35.199478+00:00",
     "scanner_version": "2.0.0"
   },
   "summary": {
-    "artifacts_scanned": 1,
+    "artifacts_scanned": 2,
     "artifacts_flagged": 0,
     "total_findings": 0,
     "by_severity": {
@@ -15,14 +15,27 @@
       "low": 0
     },
     "by_artifact_type": {
-      "skill": 1
+      "skill": 1,
+      "rule": 1
     }
   },
   "artifacts": [
     {
-      "artifact_id": "skill:always-process",
+      "artifact_id": "skill:context-size-guard",
       "artifact_type": "skill",
-      "artifact_path": "skills/always-process",
+      "artifact_path": "skills/context-size-guard",
+      "status": "clean",
+      "risk_score": 0,
+      "findings": [],
+      "quarantine_action": {
+        "executed": false,
+        "target": null
+      }
+    },
+    {
+      "artifact_id": "rule:context-size-guard",
+      "artifact_type": "rule",
+      "artifact_path": "rules/context-size-guard.md",
       "status": "clean",
       "risk_score": 0,
       "findings": [],

@@ -78,6 +78,9 @@ ARCHIVABLE_ALIASES = {
 
 RUNNABLE_SCRIPT_EXTS = {".py", ".sh", ".js"}
 
+RUNTIME_DIRNAME = ".aictx-runtime"
+CONTEXT_SIZES_FILENAME = ".context-sizes.json"
+
 TARGETS = {
     "copilot": {
         "description": "VS Code Copilot (User Profile instructions + settings)",
@@ -141,6 +144,214 @@ def is_context_enabled() -> bool:
     """Check if the AI context is enabled."""
     state = read_context_state()
     return state.get("context_enabled", True)
+
+
+def get_runtime_paths(aictx_home: Path) -> Dict[str, Path]:
+    runtime_root = aictx_home / RUNTIME_DIRNAME
+    return {
+        "root": runtime_root,
+        "active": runtime_root / "active",
+        "disabled": runtime_root / "disabled",
+        "current": runtime_root / "current",
+    }
+
+
+def build_disabled_always_stub() -> str:
+    return (
+        "---\n"
+        "trigger: always_on\n"
+        'applyTo: "**"\n'
+        "---\n\n"
+        "# AI CONTEXT — DISABLED\n\n"
+        "> **AI Context is currently DISABLED.**\n"
+        "> Use `aictx context enable` to re-enable it.\n\n"
+        "To re-enable processing of skills, agents, rules, and workflows, run:\n\n"
+        "```bash\naictx context enable\n```\n\n"
+        "**Note:** While disabled, AI tools will not process any context from ~/.ai-context.\n"
+        "This allows you to focus on pure AI processing without token consumption from loaded context.\n"
+    )
+
+
+def ensure_symlink(src: Path, dst: Path) -> None:
+    try:
+        if dst.is_symlink() and dst.resolve() == src.resolve():
+            return
+    except Exception:
+        pass
+
+    if dst.exists() or dst.is_symlink():
+        if dst.is_dir() and not dst.is_symlink():
+            shutil.rmtree(dst)
+        else:
+            dst.unlink()
+
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    dst.symlink_to(src)
+
+
+def ensure_runtime_tree(aictx_home: Path) -> Path:
+    paths = get_runtime_paths(aictx_home)
+    active_root = paths["active"]
+    disabled_root = paths["disabled"]
+    current_root = paths["current"]
+
+    active_root.mkdir(parents=True, exist_ok=True)
+    disabled_root.mkdir(parents=True, exist_ok=True)
+
+    for resource in RESOURCES:
+        src = aictx_home / resource
+        dst = active_root / resource
+        ensure_symlink(src, dst)
+
+    for resource in RESOURCES:
+        dst = disabled_root / resource
+        dst.mkdir(parents=True, exist_ok=True)
+        if resource == "rules":
+            disabled_always = dst / "ALWAYS.md"
+            disabled_always.write_text(build_disabled_always_stub())
+
+    target_root = active_root if is_context_enabled() else disabled_root
+    ensure_symlink(target_root, current_root)
+    return current_root
+
+
+def resolve_context_root(aictx_home: Path) -> Path:
+    paths = get_runtime_paths(aictx_home)
+    current_root = paths["current"]
+    if current_root.exists():
+        return current_root
+    return aictx_home
+
+
+def migrate_folder_links_to_context_root(context_root: Path) -> None:
+    for target in TARGETS.values():
+        if target.get("link_type") != "folders":
+            continue
+        base = target["base"]
+        if not base.exists():
+            continue
+        for resource in RESOURCES:
+            dst = base / resource
+            if not dst.is_symlink():
+                continue
+            try:
+                resolved = dst.resolve()
+            except Exception:
+                resolved = None
+
+            expected = context_root / resource
+            try:
+                expected_resolved = expected.resolve()
+            except Exception:
+                expected_resolved = expected
+
+            if resolved and resolved == expected_resolved:
+                continue
+
+            if resolved and str(resolved).startswith(str(AICTX_HOME)):
+                ensure_symlink(expected, dst)
+
+
+def maybe_update_vscode_settings_paths(context_root: Path) -> None:
+    settings_path = HOME / ".config/Code/User/settings.json"
+    if not settings_path.exists():
+        return
+
+    try:
+        data = parse_jsonc(settings_path.read_text())
+    except Exception:
+        return
+
+    locations = data.get("chat.instructionsFilesLocations", {})
+    if not locations:
+        return
+
+    has_aictx = False
+    for resource in RESOURCES:
+        legacy_abs = str(AICTX_HOME / resource)
+        legacy_tilde = legacy_abs.replace(str(HOME), "~")
+        current_abs = str(context_root / resource)
+        current_tilde = current_abs.replace(str(HOME), "~")
+        if legacy_abs in locations or legacy_tilde in locations:
+            has_aictx = True
+            break
+        if current_abs in locations or current_tilde in locations:
+            has_aictx = True
+            break
+
+    if has_aictx:
+        update_vscode_settings_paths(settings_path, RESOURCES, context_root)
+
+
+def _file_size_kb(path: Path) -> float:
+    try:
+        return round(path.stat().st_size / 1024, 1)
+    except Exception:
+        return 0.0
+
+
+def build_context_sizes_manifest(context_root: Path) -> dict:
+    rules_dir = context_root / "rules"
+    skills_dir = context_root / "skills"
+    agents_dir = context_root / "agents"
+    workflows_dir = context_root / "workflows"
+
+    rules = {}
+    if rules_dir.exists():
+        for md_file in sorted(rules_dir.glob("*.md")):
+            rules[md_file.stem] = _file_size_kb(md_file)
+
+    skills = {}
+    meta_skills = []
+    if skills_dir.exists():
+        for skill_dir in sorted(p for p in skills_dir.iterdir() if p.is_dir()):
+            skill_file = next(
+                (skill_dir / fn for fn in ["SKILL.md", "skill.md"] if (skill_dir / fn).exists()), None
+            )
+            if not skill_file:
+                continue
+            skills[skill_dir.name] = _file_size_kb(skill_file)
+            fm = read_frontmatter(skill_file)
+            if fm.get("tag") == "meta":
+                meta_skills.append(skill_dir.name)
+
+    agents = {}
+    if agents_dir.exists():
+        for md_file in sorted(agents_dir.glob("*.md")):
+            agents[md_file.stem] = _file_size_kb(md_file)
+
+    workflows = {}
+    if workflows_dir.exists():
+        for md_file in sorted(workflows_dir.glob("*.md")):
+            workflows[md_file.stem] = _file_size_kb(md_file)
+
+    rules_kb = round(sum(rules.values()), 1)
+    meta_kb = round(sum(skills.get(name, 0.0) for name in meta_skills), 1)
+    baseline_kb = round(rules_kb + meta_kb, 1)
+
+    return {
+        "schemaVersion": 1,
+        "generatedAt": datetime.now().isoformat(timespec="seconds"),
+        "contextEnabled": is_context_enabled(),
+        "contextRoot": str(context_root),
+        "units": "KB",
+        "thresholds": {"safe": 40, "warn": 80, "block": 80},
+        "baseline": {
+            "rules_kb": rules_kb,
+            "meta_skills_kb": meta_kb,
+            "total_kb": baseline_kb,
+            "meta_skills": sorted(meta_skills),
+        },
+        "rules": rules,
+        "skills": skills,
+        "agents": agents,
+        "workflows": workflows,
+    }
+
+
+def write_context_sizes_manifest(context_root: Path, output_path: Path) -> None:
+    manifest = build_context_sizes_manifest(context_root)
+    output_path.write_text(json.dumps(manifest, indent=2) + "\n")
 
 
 def read_frontmatter(filepath: Path) -> dict:
@@ -476,33 +687,30 @@ def build_bootstrap_block() -> str:
 ```
 """
 
-def build_context_size_audit(aictx_home: Path, resources: dict) -> str:
+def build_context_size_audit(aictx_home: Path, resources: dict, context_root: Optional[Path] = None) -> str:
     """Generate the Context Size Audit block dynamically based on file sizes."""
     audit = ["## 📊 Context Size Audit\n"]
-    
+
+    root = context_root or aictx_home
+
     # P0 Rules Baseline
-    rules_dir = aictx_home / "rules"
+    rules_dir = root / "rules"
     p0_sizes = []
-    total_p0_size = 0
+    total_p0_size = 0.0
     if rules_dir.exists():
         for md_file in sorted(rules_dir.glob("*.md")):
-            try:
-                size_kb = os.path.getsize(md_file) / 1024
-                p0_sizes.append(f"{md_file.stem}({size_kb:.1f})")
-                total_p0_size += size_kb
-            except:
-                pass
-                
-    always_found = any("ALWAYS" in f for f in p0_sizes)
-    if not always_found:
-        total_p0_size += 6.0
-        p0_sizes.insert(0, "ALWAYS(6.0)")
-        
+            size_kb = _file_size_kb(md_file)
+            if size_kb <= 0:
+                continue
+            p0_sizes.append(f"{md_file.stem}({size_kb:.1f})")
+            total_p0_size += size_kb
+
     audit.append(f"**P0 Baseline (~{total_p0_size:.0f} KB)**: {', '.join(p0_sizes)}")
-    audit.append("**Thresholds**: Safe ≤ 40KB | Warn 41–80KB | Block > 80KB\n")
-    
+    audit.append("**Thresholds**: Safe ≤ 40KB | Warn 41–80KB | Block > 80KB")
+    audit.append("**Dynamic load manifest**: .ai-context/.context-sizes.json\n")
+
     # Agents sizes
-    agents_dir = aictx_home / "agents"
+    agents_dir = root / "agents"
     agent_sizes = []
     if agents_dir.exists():
         for agent in resources.get("agents", []):
@@ -512,34 +720,34 @@ def build_context_size_audit(aictx_home: Path, resources: dict) -> str:
                 else:
                     agent_file = agents_dir / f"{agent['name']}.md"
                 if agent_file.exists():
-                    size_kb = os.path.getsize(agent_file) / 1024
+                    size_kb = _file_size_kb(agent_file)
                     if size_kb >= 3.0:
                         agent_sizes.append(f"{agent['name']}({size_kb:.1f})")
-            except:
+            except Exception:
                 pass
     if agent_sizes:
         audit.append(f"**Agents > 3KB**: {', '.join(agent_sizes)}")
-        
+
     # Large Skills
-    skills_dir = aictx_home / "skills"
+    skills_dir = root / "skills"
     skill_sizes = []
     if skills_dir.exists():
         for skill in resources.get("skills", []):
             try:
                 skill_file = skills_dir / skill["name"] / "SKILL.md"
                 if skill_file.exists():
-                    size_kb = os.path.getsize(skill_file) / 1024
+                    size_kb = _file_size_kb(skill_file)
                     if size_kb > 6.0:
                         skill_sizes.append(f"{skill['name']}({size_kb:.1f})")
-            except:
+            except Exception:
                 pass
     if skill_sizes:
         audit.append(f"**Skills > 6KB**: {', '.join(skill_sizes)}")
-                
+
     audit.append("\n**Action:** Check cumulative (Baseline + load) before loading artifacts. Block if > 80 KB.\n")
     return "\n".join(audit)
 
-def build_always_md(aictx_home: Path, resources: dict) -> str:
+def build_always_md(aictx_home: Path, resources: dict, context_root: Optional[Path] = None) -> str:
     """Generate ALWAYS.md — hybrid: minimal protocol + embedded rule files.
     
     If context is disabled, returns a minimal disabled stub.
@@ -549,19 +757,7 @@ def build_always_md(aictx_home: Path, resources: dict) -> str:
     
     # Check if context is disabled
     if not is_context_enabled():
-        return (
-            "---\n"
-            "trigger: always_on\n"
-            'applyTo: "**"\n'
-            "---\n\n"
-            "# AI CONTEXT — DISABLED\n\n"
-            "> **AI Context is currently DISABLED.**\n"
-            "> Use `aictx context enable` to re-enable it.\n\n"
-            "To re-enable processing of skills, agents, rules, and workflows, run:\n\n"
-            "```bash\naictx context enable\n```\n\n"
-            "**Note:** While disabled, AI tools will not process any context from ~/.ai-context.\n"
-            "This allows you to focus on pure AI processing without token consumption from loaded context.\n"
-        )
+        return build_disabled_always_stub()
     
     bootstrap = build_bootstrap_block()
 
@@ -625,7 +821,7 @@ def build_always_md(aictx_home: Path, resources: dict) -> str:
         "**Skills:** " + skills_ref + "\n\n"
         "**Workflows:** " + workflow_ref + "\n\n"
         "---\n\n"
-        + build_context_size_audit(aictx_home, resources)
+        + build_context_size_audit(aictx_home, resources, context_root)
     )
 
 
@@ -932,7 +1128,7 @@ def cmd_telemetry(args):
     return 0
 
 
-def inject_vscode_settings(settings_path: Path, resources: list):
+def update_vscode_settings_paths(settings_path: Path, resources: list, context_root: Path):
     settings_path.parent.mkdir(parents=True, exist_ok=True)
     data = {}
     if settings_path.exists():
@@ -945,7 +1141,16 @@ def inject_vscode_settings(settings_path: Path, resources: list):
     locations = data.get("chat.instructionsFilesLocations", {})
     changed = False
     for resource in resources:
-        abs_path = str(AICTX_HOME / resource)
+        legacy_abs = str(AICTX_HOME / resource)
+        legacy_tilde = legacy_abs.replace(str(HOME), "~")
+        if legacy_abs in locations:
+            del locations[legacy_abs]
+            changed = True
+        if legacy_tilde in locations:
+            del locations[legacy_tilde]
+            changed = True
+
+        abs_path = str(context_root / resource)
         tilde_path = abs_path.replace(str(HOME), "~")
         if abs_path in locations or tilde_path in locations:
             print(f"  ✓  settings.json ← {resource} already registered")
@@ -968,6 +1173,7 @@ def cmd_sync(args):
     print(f"   Source : {AICTX_HOME}\n")
 
     resources = scan_resources(AICTX_HOME)
+    context_root = ensure_runtime_tree(AICTX_HOME)
 
     print(f"   rules     : {len(resources['rules'])}")
     print(f"   skills    : {len(resources['skills'])}  ({sum(1 for s in resources['skills'] if s.get('tag') == 'meta')} meta)")
@@ -975,9 +1181,12 @@ def cmd_sync(args):
     print(f"   workflows : {len(resources['workflows'])}\n")
 
     always_path = AICTX_HOME / "rules" / "ALWAYS.md"
-    content = build_always_md(AICTX_HOME, resources)
+    content = build_always_md(AICTX_HOME, resources, context_root)
     always_path.write_text(content)
     print(f"✅ ALWAYS.md regenerated → {always_path}")
+
+    write_context_sizes_manifest(context_root, AICTX_HOME / CONTEXT_SIZES_FILENAME)
+    print(f"✅ Context size manifest updated → {AICTX_HOME / CONTEXT_SIZES_FILENAME}")
 
     copilot_instr = HOME / ".config/Code/User/prompts/ai-context.instructions.md"
     if copilot_instr.is_symlink():
@@ -991,12 +1200,16 @@ def cmd_sync(args):
         copilot_instr.write_text(content)
         print(f"✅ Copilot instructions updated → {copilot_instr}")
 
+    migrate_folder_links_to_context_root(context_root)
+    maybe_update_vscode_settings_paths(context_root)
+
     print()
 
 
 def cmd_install(args):
     global AICTX_HOME
     AICTX_HOME = resolve_aictx_home()
+    context_root = ensure_runtime_tree(AICTX_HOME)
 
     print(f"\n🧠 AI Context — Install")
     print(f"   Source : {AICTX_HOME}")
@@ -1047,19 +1260,19 @@ def cmd_install(args):
         if target["link_type"] == "copilot":
             instr_path = target["paths"]["instructions"]
             instr_path.parent.mkdir(parents=True, exist_ok=True)
-            always_path = AICTX_HOME / "rules" / "ALWAYS.md"
+            always_path = context_root / "rules" / "ALWAYS.md"
             instr_path.write_text(
                 always_path.read_text() if always_path.exists()
                 else "# ALWAYS.md not found — run: aictx sync\n"
             )
             print(f"  ✓  {instr_path.name} ← written from ALWAYS.md")
-            inject_vscode_settings(target["paths"]["settings"], selected_resources)
+            update_vscode_settings_paths(target["paths"]["settings"], selected_resources, context_root)
 
         elif target["link_type"] == "folders":
             base = target["base"]
             base.mkdir(parents=True, exist_ok=True)
             for resource in selected_resources:
-                src = AICTX_HOME / resource
+                src = context_root / resource
                 dst = base / resource
                 print(f"  {make_link(src, dst, force=args.force)}")
 
@@ -1072,6 +1285,7 @@ def cmd_install(args):
 def cmd_status(args):
     global AICTX_HOME
     AICTX_HOME = resolve_aictx_home()
+    context_root = resolve_context_root(AICTX_HOME)
 
     print(f"\n🧠 AI Context — Status")
     print(f"   Source : {AICTX_HOME}\n")
@@ -1096,10 +1310,20 @@ def cmd_status(args):
                     data = parse_jsonc(settings.read_text())
                     locations = data.get("chat.instructionsFilesLocations", {})
                     for r in RESOURCES:
-                        abs_p = str(AICTX_HOME / r)
-                        tilde_p = abs_p.replace(str(HOME), "~")
-                        registered = "✓" if abs_p in locations or tilde_p in locations else "✗"
-                        print(f"  {registered}  settings ← {r}")
+                        current_abs = str(context_root / r)
+                        current_tilde = current_abs.replace(str(HOME), "~")
+                        legacy_abs = str(AICTX_HOME / r)
+                        legacy_tilde = legacy_abs.replace(str(HOME), "~")
+                        if current_abs in locations or current_tilde in locations:
+                            registered = "✓"
+                            suffix = ""
+                        elif legacy_abs in locations or legacy_tilde in locations:
+                            registered = "⚠"
+                            suffix = " (legacy path)"
+                        else:
+                            registered = "✗"
+                            suffix = ""
+                        print(f"  {registered}  settings ← {r}{suffix}")
                 except Exception:
                     print("  ⚠  Could not read settings.json")
             else:
@@ -1108,7 +1332,7 @@ def cmd_status(args):
         elif target["link_type"] == "folders":
             base = target["base"]
             for resource in RESOURCES:
-                status = link_status(base / resource, AICTX_HOME / resource)
+                status = link_status(base / resource, context_root / resource)
                 print(f"  {status} — {resource}")
 
         print()
