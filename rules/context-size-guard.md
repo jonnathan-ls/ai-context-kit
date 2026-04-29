@@ -39,22 +39,13 @@ The model reads sizes from the manifest and calculates cumulative total before l
 
 ## Workspace Read Size (Dynamic)
 
-When a request requires reading files from the current workspace/repository, measure the
-candidate files **before any read** and log their size separately from the AI context.
+When a request requires reading files from the current workspace/repository, log their size in the workspace branch of the label.
 
 ### Method
 
-- Build the candidate file list from the planned reads.
-- Exclude `.ai-context` artifacts (already counted in the manifest).
-- Run a single command from the workspace root:
-
-```bash
-du -sk path/to/file1 path/to/file2
-```
-
-- Sum the KB values and emit a second label line (see below).
-- Avoid external scripts; keep it to a single `du` call (use `awk` only to sum).
-- If `du` is unavailable, fall back to `stat -c%s` or `wc -c` and convert to KB.
+- Use the byte sizes returned automatically by workspace reading tools (e.g., `view_file` returns bytes/lines).
+- Avoid running manual shell commands (like `du -sk` or `wc -c`) just to check sizes, to save tokens and time.
+- Sum the file sizes in KB and update the workspace load.
 
 ### Workspace Thresholds
 
@@ -72,24 +63,26 @@ du -sk path/to/file1 path/to/file2
 
 ## Required Output Label
 
-Emit the label computed from the manifest at the **top of every response**, before
-any other content:
+Emit the label computed from the manifest at the **top of every response**, before any other content, using this single-line compact format:
 
 ```
-🟢 Context load: 12.4 KB (within safe limit)
+🟢 **Load:** 15.4 KB Context 📜 12.4 🤖 3.5 🎯 1.5 🔄 0  | 📁 0.0 KB Workspace (0 files)
 ```
 
-The label must always be present, even on green (safe) results, so the user
-can always see how much context was loaded.
+Where:
+- `📜` = Rules
+- `🤖` = Agent
+- `🎯` = Skills
+- `🔄` = Workflows
 
-If workspace files are involved, add a second line:
+If workspace files are involved, sum their sizes and update the Workspace branch:
 
 ```
-🟢 Workspace load: 24 KB (2 files)
+🟢 **Load:** 15.4 KB Context 📜 12.4 🤖 3.5 🎯 0 🔄 0 | 📁 60.0 KB Workspace (2 files)
 ```
 
-If the workspace load exceeds thresholds, switch to 🟡/🔴 and request authorization
-before reading file contents.
+If the load exceeds thresholds, switch the emojis to 🟡/🔴 and request authorization before reading file contents.
+
 
 ## Block Protocol
 

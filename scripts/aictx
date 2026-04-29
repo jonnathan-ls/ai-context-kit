@@ -101,6 +101,7 @@ TARGETS = {
         "link_type": "folders",
         "base": HOME / ".gemini/antigravity",
         "resources": RESOURCES,
+        "global_rule": HOME / ".gemini/GEMINI.md",
     },
     "cursor": {
         "description": "Cursor IDE (~/.cursor)",
@@ -281,6 +282,22 @@ def maybe_update_vscode_settings_paths(context_root: Path) -> None:
 
     if has_aictx:
         update_vscode_settings_paths(settings_path, RESOURCES, context_root)
+
+
+def update_folder_global_rules(context_root: Path, content: str) -> None:
+    for target in TARGETS.values():
+        if target.get("link_type") != "folders":
+            continue
+        global_rule_path = target.get("global_rule")
+        if not global_rule_path:
+            continue
+        if not global_rule_path.parent.exists():
+            continue
+        try:
+            global_rule_path.write_text(content)
+            print(f"✅ {global_rule_path.name} updated → {global_rule_path}")
+        except Exception as e:
+            print(f"⚠  Could not update {global_rule_path.name}: {e}")
 
 
 def _file_size_kb(path: Path) -> float:
@@ -859,6 +876,23 @@ def link_status(dst: Path, src: Path) -> str:
     return "⚠  real file/folder (not a symlink)"
 
 
+def global_rule_status(context_root: Path, target: dict) -> Optional[str]:
+    global_rule_path = target.get("global_rule")
+    if not global_rule_path:
+        return None
+
+    if not global_rule_path.exists():
+        return f"✗  global_rule ← {global_rule_path}"
+
+    try:
+        always_path = context_root / "rules" / "ALWAYS.md"
+        if always_path.exists() and always_path.read_text() == global_rule_path.read_text():
+            return f"✓  global_rule ← {global_rule_path}"
+        return f"⚠  global_rule ← {global_rule_path} (mismatch)"
+    except Exception as e:
+        return f"⚠  global_rule ← {global_rule_path} ({e})"
+
+
 def parse_jsonc(text: str) -> dict:
     """Parse JSONC (JSON with Comments + trailing commas)."""
     # Remove single-line comments
@@ -1202,6 +1236,7 @@ def cmd_sync(args):
 
     migrate_folder_links_to_context_root(context_root)
     maybe_update_vscode_settings_paths(context_root)
+    update_folder_global_rules(context_root, content)
 
     print()
 
@@ -1276,6 +1311,16 @@ def cmd_install(args):
                 dst = base / resource
                 print(f"  {make_link(src, dst, force=args.force)}")
 
+            if target.get("global_rule"):
+                global_rule_path = target["global_rule"]
+                global_rule_path.parent.mkdir(parents=True, exist_ok=True)
+                always_path = context_root / "rules" / "ALWAYS.md"
+                if always_path.exists():
+                    global_rule_path.write_text(always_path.read_text())
+                    print(f"  ✓  {global_rule_path.name} ← written from ALWAYS.md")
+                else:
+                    print(f"  ⚠  {global_rule_path.name} ← ALWAYS.md not found, run: aictx sync")
+
         print()
 
     print("✅ Done. Run `aictx status` to verify.")
@@ -1334,6 +1379,9 @@ def cmd_status(args):
             for resource in RESOURCES:
                 status = link_status(base / resource, context_root / resource)
                 print(f"  {status} — {resource}")
+            gr_status = global_rule_status(context_root, target)
+            if gr_status:
+                print(f"  {gr_status}")
 
         print()
 

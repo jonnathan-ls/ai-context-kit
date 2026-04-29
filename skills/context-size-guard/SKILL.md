@@ -34,23 +34,22 @@ deciding to load agents or skills.
 
 ## Output Label Format
 
+Use the following highly compact single-line format for ALL responses. Extract sizes strictly from `.ai-context/.context-sizes.json`.
+
 **Green (safe):**
 ```
-🟢 Context load: 56 KB (safe)
-  Baseline: 48 KB | backend-specialist: 12 KB
+🟢 **Load:** 25.4 KB Context (📜 12.4 | 🤖 8.0 | 🎯 5.0) | 📁 12.0 KB Workspace (2 files)
 ```
 
 **Yellow (warn):**
 ```
-🟡 Context load: 78 KB (above recommended limit)
-  Baseline: 48 KB | app-builder: 8 KB | orchestrator: 14 KB
-  → Ask user: continue anyway?
+🟡 **Load:** 60.0 KB Context (📜 12.4 | 🤖 25.2 | 🎯 22.4) | 📁 12.0 KB Workspace (2 files)
+→ Ask user: continue anyway?
 ```
 
 **Red (block):**
 ```
-🔴 Context load: 95 KB (EXCEEDS LIMIT — requires authorization)
-  Baseline: 48 KB | remotion-best-practices: 8 KB | game-developer: 14 KB + other skills
+🔴 **Load:** 95.0 KB Context (📜 12.4 | 🤖 13.5 | 🎯 69.1) | 📁 0.0 KB Workspace (0 files)
   
 → Stop here. Output:
 
@@ -62,27 +61,13 @@ The safe limit is 80 KB. This may degrade reasoning and waste tokens.
 
 ## Workspace Read Size
 
-When you need to read files from the current workspace/repository, measure their size
-before reading and report it separately from the AI context.
+When you need to read files from the current workspace/repository, report their size separately from the AI context in the `Workspace` branch of the label.
 
 ### Method
 
-- Build the candidate file list from the planned reads.
-- Exclude `.ai-context` artifacts (already counted in the manifest).
-- Run a single command from the workspace root:
-
-```bash
-du -sk path/to/file1 path/to/file2
-```
-
-- Sum the KB values and emit a second label line:
-- Avoid external scripts; keep it to a single `du` call (use `awk` only to sum).
-
-```
-🟢 Workspace load: 24 KB (2 files)
-```
-
-- If `du` is unavailable, fall back to `stat -c%s` or `wc -c` and convert to KB.
+- Rely on the output of tools like `view_file` which return exact byte counts automatically.
+- Do NOT run bash scripts (like `du` or `wc`) manually just to check sizes, to avoid wasting steps.
+- Exclude `.ai-context` artifacts from the workspace calculation (they are already counted in Context Load).
 
 ### Workspace Thresholds
 
