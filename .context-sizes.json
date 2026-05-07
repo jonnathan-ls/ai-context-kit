@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-05-07T17:47:23",
+  "generatedAt": "2026-05-07T18:04:33",
   "contextEnabled": true,
   "contextRoot": "/home/jonnathan/.ai-context/.aictx-runtime/current",
   "units": "KB",
@@ -10,9 +10,9 @@
     "block": 80
   },
   "baseline": {
-    "rules_kb": 16.9,
+    "rules_kb": 18.3,
     "meta_skills_kb": 18.6,
-    "total_kb": 35.5,
+    "total_kb": 36.9,
     "meta_skills": [
       "behavioral-modes",
       "context-security-guardian",
@@ -21,14 +21,15 @@
     ]
   },
   "rules": {
-    "ALWAYS": 4.8,
+    "ALWAYS": 4.9,
     "agent-protocol": 1.6,
     "checklist-protocol": 0.9,
     "code-standards": 1.7,
     "context-size-guard": 4.3,
     "language-policy": 0.7,
     "response-discipline": 1.5,
-    "socratic-gate": 1.4
+    "socratic-gate": 1.4,
+    "workspace-guard": 1.3
   },
   "skills": {
     "api-patterns": 2.6,
@@ -86,7 +87,8 @@
     "token-management": 4.5,
     "vulnerability-scanner": 7.6,
     "web-design-guidelines": 1.7,
-    "webapp-testing": 4.0
+    "webapp-testing": 4.0,
+    "workspace-mapper": 1.7
   },
   "agents": {
     "AGENTS": 4.2,
