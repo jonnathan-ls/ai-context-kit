@@ -1,0 +1,29 @@
+{
+  "skill_name": "token-compressor",
+  "rubric_version": "1.0.0",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Given a 2,000-line build log with many repeated lines and a single error stack trace near the end, compress it deterministically. Preserve the error/trace lines and include omission markers.",
+      "expected_output": "A compressed excerpt that keeps head/tail plus evidence lines (error/exception/traceback), collapses noisy repeats, and inserts omission markers like '... (N lines omitted) ...'.",
+      "files": [],
+      "expectations": [
+        "Output includes omission markers for large gaps.",
+        "Error/exception/traceback lines are preserved.",
+        "Repeated identical lines are collapsed beyond a small repeat threshold.",
+        "Compression is deterministic (same input yields same output)."
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Compress a long chat transcript while preserving 'ERROR' lines and the immediate context around them. Ensure the output stays under a max-lines budget.",
+      "expected_output": "A compact excerpt under the requested max-lines limit, with evidence preserved and context lines around matches.",
+      "files": [],
+      "expectations": [
+        "Respects a max-lines budget when configured.",
+        "Keeps +/- context lines around evidence matches.",
+        "Does not remove the tail error context if present."
+      ]
+    }
+  ]
+}

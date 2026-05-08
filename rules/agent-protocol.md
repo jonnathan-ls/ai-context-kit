@@ -2,6 +2,7 @@
 priority: P0
 trigger: always_on
 description: Agent & skill loading protocol — P0/P1/P2 enforcement, routing, activation checklist
+tags: core, routing, activation
 ---
 
 # Agent Protocol

@@ -2,6 +2,7 @@
 priority: P0
 trigger: always_on
 description: Clean Code standards, file awareness, task complexity tiers
+tags: core, quality, code
 ---
 
 # Code Standards

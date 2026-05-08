@@ -1,3 +1,10 @@
+---
+priority: P0
+trigger: always_on
+description: Workspace navigation guard — require workspace-map before deep repo search.
+tags: workspace, harness, token
+---
+
 # Workspace Guard (P0)
 
 > ⚠️ **Critical Rule**: Always check for the workspace map before initiating deep file searches or architectural changes.

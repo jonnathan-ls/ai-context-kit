@@ -1,0 +1,28 @@
+{
+  "skill_name": "context-validator",
+  "rubric_version": "1.0.0",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "You are asked: 'refactor the CLI to add a new command and update docs'. Run the context harness and decide PASS/WARN/BLOCK. Provide the harness report with goal, scope, missing info, files to read next (top 3), and validation plan.",
+      "expected_output": "A Context Harness report. Status should be WARN or BLOCK unless required files/spec are identified. Includes a minimal validation plan.",
+      "files": [],
+      "expectations": [
+        "Output includes a 'Status: PASS | WARN | BLOCK' line.",
+        "Output includes Goal, Scope, Missing, Files to read next, and Validation bullets.",
+        "If key files/spec are unknown, the status is WARN or BLOCK and asks up to 2 targeted questions."
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "User provides a clear spec and names the exact files to change. Run the harness and produce a PASS report, including a concrete validation step (tests/build/errors).",
+      "expected_output": "A PASS Context Harness report that references the provided spec/files and includes a credible validation command.",
+      "files": [],
+      "expectations": [
+        "Status is PASS when the end state and files are explicit.",
+        "Validation plan is specific and minimal (e.g., run a targeted command).",
+        "Does not propose unrelated refactors or extra scope."
+      ]
+    }
+  ]
+}

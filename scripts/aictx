@@ -83,8 +83,8 @@ ARCHIVABLE_TYPES = {
         "active_pattern": "{name}.md",
     },
     "spec": {
-        "active_dir": "openspec/specs",
-        "archived_dir": "openspec/specs",
+        "active_dir": "specs",
+        "archived_dir": "specs",
         "active_pattern": "{name}.md",
     },
 }
@@ -103,6 +103,7 @@ RUNNABLE_SCRIPT_EXTS = {".py", ".sh", ".js"}
 
 RUNTIME_DIRNAME = ".aictx-runtime"
 CONTEXT_SIZES_FILENAME = ".context-sizes.json"
+RESOURCES_MANIFEST_FILENAME = ".aictx-manifest.json"
 
 TARGETS = {
     "copilot": {
@@ -489,6 +490,68 @@ def write_context_sizes_manifest(context_root: Path, output_path: Path) -> None:
     output_path.write_text(json.dumps(manifest, indent=2) + "\n")
 
 
+def _split_csv(value: str) -> List[str]:
+    if not value:
+        return []
+    v = value.strip()
+    if v.startswith("[") and v.endswith("]"):
+        v = v[1:-1]
+    parts = re.split(r"[,|]", v)
+    return [p.strip() for p in parts if p and p.strip()]
+
+
+def build_resources_manifest(context_root: Path, resources: dict) -> dict:
+    """Build a machine-readable manifest for rules/skills/agents/workflows/specs.
+
+    Intended for prompt-middleware features like Smart Tags, context ranking,
+    and token budgeting.
+    """
+    root = context_root
+
+    def _with_size(item: dict, path: Path) -> dict:
+        out = dict(item)
+        out["size_kb"] = _file_size_kb(path) if path.exists() else 0.0
+        out["tags_list"] = _split_csv(out.get("tags", ""))
+        return out
+
+    rules_dir = root / "rules"
+    skills_dir = root / "skills"
+    agents_dir = root / "agents"
+    workflows_dir = root / "workflows"
+    specs_dir = root / "specs"
+
+    rules = [_with_size(r, rules_dir / f"{r['name']}.md") for r in resources.get("rules", [])]
+    skills = [_with_size(s, skills_dir / s["name"] / "SKILL.md") for s in resources.get("skills", [])]
+
+    agents = []
+    for a in resources.get("agents", []):
+        if a.get("type") == "directory":
+            p = agents_dir / a["name"] / "agent.md"
+        else:
+            p = agents_dir / f"{a['name']}.md"
+        agents.append(_with_size(a, p))
+
+    workflows = [_with_size(w, workflows_dir / f"{w['name']}.md") for w in resources.get("workflows", [])]
+    specs = [_with_size(sp, specs_dir / f"{sp['name']}.md") for sp in resources.get("specs", [])]
+
+    return {
+        "schemaVersion": 1,
+        "generatedAt": datetime.now().isoformat(timespec="seconds"),
+        "contextEnabled": is_context_enabled(),
+        "contextRoot": str(root),
+        "rules": rules,
+        "skills": skills,
+        "agents": agents,
+        "workflows": workflows,
+        "specs": specs,
+    }
+
+
+def write_resources_manifest(context_root: Path, resources: dict, output_path: Path) -> None:
+    manifest = build_resources_manifest(context_root, resources)
+    output_path.write_text(json.dumps(manifest, indent=2) + "\n")
+
+
 def read_frontmatter(filepath: Path) -> dict:
     data = {}
     try:
@@ -513,7 +576,7 @@ def read_frontmatter(filepath: Path) -> dict:
 
 
 def scan_resources(aictx_home: Path) -> dict:
-    result = {"rules": [], "skills": [], "agents": [], "workflows": []}
+    result = {"rules": [], "skills": [], "agents": [], "workflows": [], "specs": []}
 
     rules_dir = aictx_home / "rules"
     if rules_dir.exists():
@@ -527,6 +590,7 @@ def scan_resources(aictx_home: Path) -> dict:
                 "priority": fm.get("priority", "P0"),
                 "trigger": fm.get("trigger", "always_on"),
                 "description": fm.get("description", ""),
+                "tags": fm.get("tags", ""),
             })
 
     skills_dir = aictx_home / "skills"
@@ -542,6 +606,9 @@ def scan_resources(aictx_home: Path) -> dict:
                         "name": d.name,
                         "tag": fm.get("tag", ""),
                         "description": fm.get("description", ""),
+                        "version": fm.get("version", ""),
+                        "tags": fm.get("tags", ""),
+                        "allowed_tools": fm.get("allowed-tools", ""),
                     })
 
     agents_dir = aictx_home / "agents"
@@ -555,6 +622,7 @@ def scan_resources(aictx_home: Path) -> dict:
                 "name": f.stem,
                 "description": fm.get("description", ""),
                 "skills": fm.get("skills", ""),
+                "tags": fm.get("tags", ""),
             })
         # Also detect directory-based agents (e.g. agent-name/agent.md)
         for d in sorted(agents_dir.iterdir()):
@@ -566,6 +634,7 @@ def scan_resources(aictx_home: Path) -> dict:
                         "name": d.name,
                         "description": fm.get("description", ""),
                         "skills": fm.get("skills", ""),
+                        "tags": fm.get("tags", ""),
                         "type": "directory",
                     })
 
@@ -576,6 +645,20 @@ def scan_resources(aictx_home: Path) -> dict:
             result["workflows"].append({
                 "name": f.stem,
                 "description": fm.get("description", ""),
+                "tags": fm.get("tags", ""),
+            })
+
+    specs_dir = aictx_home / "specs"
+    if specs_dir.exists():
+        for f in sorted(specs_dir.glob("*.md")):
+            if f.name == ".gitkeep":
+                continue
+            fm = read_frontmatter(f)
+            result["specs"].append({
+                "name": f.stem,
+                "description": fm.get("description", ""),
+                "version": fm.get("version", ""),
+                "tags": fm.get("tags", ""),
             })
 
     return result
@@ -911,10 +994,19 @@ def build_always_md(aictx_home: Path, resources: dict, context_root: Optional[Pa
     else:
         meta_list = "> (none)"
 
-    agents_ref   = ", ".join("`" + a["name"] + "`" for a in resources["agents"]) or "(none)"
-    skills_ref   = ", ".join("`" + s["name"] + "`" for s in resources["skills"]) or "(none)"
-    workflow_ref = ", ".join("`" + w["name"] + "`" for w in resources["workflows"]) or "(none)"
-    rules_ref    = ", ".join("`" + r["name"] + "`" for r in resources["rules"]) or "(none)"
+    def _fmt_refs(items: List[dict], limit: int) -> str:
+        names = sorted([i.get("name", "").strip() for i in items if i.get("name")])
+        if not names:
+            return "(none)"
+        if len(names) <= limit:
+            return ", ".join(f"`{n}`" for n in names)
+        shown = names[:limit]
+        return ", ".join(f"`{n}`" for n in shown) + f" … (+{len(names) - limit} more)"
+
+    agents_ref   = f"{len(resources['agents'])} total — " + _fmt_refs(resources["agents"], limit=8)
+    skills_ref   = f"{len(resources['skills'])} total — " + _fmt_refs(resources["skills"], limit=12)
+    workflow_ref = f"{len(resources['workflows'])} total — " + _fmt_refs(resources["workflows"], limit=8)
+    rules_ref    = f"{len(resources['rules'])} total — " + _fmt_refs(resources["rules"], limit=12)
 
     home_str     = "./.ai-context"
     now_str      = now
@@ -1392,6 +1484,10 @@ def cmd_sync(args):
     write_context_sizes_manifest(context_root, sizes_path)
     print_step(True, "context-sizes", f"{str(sizes_path).replace(str(HOME), '~')}")
 
+    resources_manifest_path = AICTX_HOME / RESOURCES_MANIFEST_FILENAME
+    write_resources_manifest(context_root, resources, resources_manifest_path)
+    print_step(True, "resources-manifest", f"{str(resources_manifest_path).replace(str(HOME), '~')}")
+
     print_header("🔗", "PROPAGATION")
     
     # 1. Copilot Special Case
@@ -1750,6 +1846,8 @@ def cmd_add(args):
         if not name: return 0
 
     name = name.lower().replace(" ", "-")
+    description = (getattr(args, "description", "") or "").strip()
+    tags = (getattr(args, "tags", "") or "").strip()
     
     if kind == "skill":
         target = AICTX_HOME / "skills" / name
@@ -1757,7 +1855,21 @@ def cmd_add(args):
             print(f"⚠️  Skill {name} already exists.")
             return 1
         target.mkdir(parents=True)
-        (target / "SKILL.md").write_text(f"---\nname: {name}\ndescription: {name} skill\n---\n# {name.title()}\n")
+        version = (getattr(args, "version", "") or "").strip() or "1.0.0"
+        allowed_tools = (getattr(args, "allowed_tools", "") or "").strip()
+        if not description:
+            description = f"{name} skill"
+        title = name.replace("-", " ").title()
+        (target / "SKILL.md").write_text(
+            "---\n"
+            f"version: {version}\n"
+            f"name: {name}\n"
+            f"description: {description}\n"
+            f"allowed-tools: {allowed_tools}\n"
+            f"tags: {tags}\n"
+            "---\n\n"
+            f"# {title}\n"
+        )
         print(f"✅ Skill created: {target}/SKILL.md")
     
     elif kind == "agent":
@@ -1765,7 +1877,19 @@ def cmd_add(args):
         if target.exists():
             print(f"⚠️  Agent {name} already exists.")
             return 1
-        target.write_text(f"---\nname: {name}\ndescription: {name} agent\nskills: clean-code\n---\n# {name.title()}\n")
+        if not description:
+            description = f"{name} agent"
+        skills = (getattr(args, "skills", "") or "").strip() or "clean-code"
+        title = name.replace("-", " ").title()
+        target.write_text(
+            "---\n"
+            f"name: {name}\n"
+            f"description: {description}\n"
+            f"skills: {skills}\n"
+            f"tags: {tags}\n"
+            "---\n\n"
+            f"# {title}\n"
+        )
         print(f"✅ Agent created: {target}")
 
     return 0
@@ -2320,6 +2444,9 @@ def main():
     p_add.add_argument("kind", nargs="?", choices=["skill", "agent"], help="What to create")
     p_add.add_argument("name", nargs="?", help="Name of the skill or agent (e.g. my-skill)")
     p_add.add_argument("--description", "-d", help="Short description")
+    p_add.add_argument("--version", "-v", help="Skill version (skills only)")
+    p_add.add_argument("--tags", "-t", help="Comma-separated tags")
+    p_add.add_argument("--allowed-tools", dest="allowed_tools", help="Comma-separated allowed tool names (skills only)")
     p_add.add_argument("--skills", "-s", help="Comma-separated skill refs (agents only)")
     p_add.set_defaults(func=cmd_add)
 

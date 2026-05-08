@@ -1,0 +1,676 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-05-07T22:44:43",
+  "contextEnabled": true,
+  "contextRoot": "/home/jonnathan/.ai-context/.aictx-runtime/current",
+  "rules": [
+    {
+      "name": "agent-protocol",
+      "file": "agent-protocol.md",
+      "priority": "P0",
+      "trigger": "always_on",
+      "description": "Agent & skill loading protocol \u2014 P0/P1/P2 enforcement, routing, activation checklist",
+      "tags": "core, routing, activation",
+      "size_kb": 1.7,
+      "tags_list": [
+        "core",
+        "routing",
+        "activation"
+      ]
+    },
+    {
+      "name": "checklist-protocol",
+      "file": "checklist-protocol.md",
+      "priority": "P0",
+      "trigger": "always_on",
+      "description": "Pre-response checklist and final validation gate before delivering any output",
+      "tags": "core, safety, validation",
+      "size_kb": 0.9,
+      "tags_list": [
+        "core",
+        "safety",
+        "validation"
+      ]
+    },
+    {
+      "name": "code-standards",
+      "file": "code-standards.md",
+      "priority": "P0",
+      "trigger": "always_on",
+      "description": "Clean Code standards, file awareness, task complexity tiers",
+      "tags": "core, quality, code",
+      "size_kb": 1.7,
+      "tags_list": [
+        "core",
+        "quality",
+        "code"
+      ]
+    },
+    {
+      "name": "language-policy",
+      "file": "language-policy.md",
+      "priority": "P0",
+      "trigger": "always_on",
+      "description": "Language policy for chat responses vs generated documents. Chat responses stay in Portuguese; all created/updated files and documents must be in English.",
+      "tags": "core, language",
+      "size_kb": 0.7,
+      "tags_list": [
+        "core",
+        "language"
+      ]
+    },
+    {
+      "name": "response-discipline",
+      "file": "response-discipline.md",
+      "priority": "P0",
+      "trigger": "always_on",
+      "description": "Enforces strict response boundaries, scope control, and token efficiency.",
+      "tags": "core, scope, token",
+      "size_kb": 1.6,
+      "tags_list": [
+        "core",
+        "scope",
+        "token"
+      ]
+    },
+    {
+      "name": "socratic-gate",
+      "file": "socratic-gate.md",
+      "priority": "P0",
+      "trigger": "always_on",
+      "description": "Clarification gate \u2014 ask before assuming on ambiguous or destructive requests",
+      "tags": "safety, clarification, scope",
+      "size_kb": 1.5,
+      "tags_list": [
+        "safety",
+        "clarification",
+        "scope"
+      ]
+    },
+    {
+      "name": "workspace-guard",
+      "file": "workspace-guard.md",
+      "priority": "P0",
+      "trigger": "always_on",
+      "description": "Workspace navigation guard \u2014 require workspace-map before deep repo search.",
+      "tags": "workspace, harness, token",
+      "size_kb": 1.6,
+      "tags_list": [
+        "workspace",
+        "harness",
+        "token"
+      ]
+    }
+  ],
+  "skills": [
+    {
+      "name": "architecture",
+      "tag": "",
+      "description": "Architectural decision-making framework. Requirements analysis, trade-off evaluation, ADR documentation. Use when making architecture decisions, analyzing system design, choosing patterns, or documenting design choices. Triggers on architecture, system design, ADR, microservices, monolith, trade-offs, scalability, design patterns.",
+      "version": "1.0.0",
+      "tags": "",
+      "allowed_tools": "",
+      "size_kb": 1.9,
+      "tags_list": []
+    },
+    {
+      "name": "bash-linux",
+      "tag": "",
+      "description": "Bash/Linux terminal patterns for shell scripting, pipelines, and system automation. Use when writing bash scripts, running terminal commands, handling errors in shell, working with files and processes, or automating tasks on macOS or Linux. Triggers on bash, shell, script, cron, pipe, grep, awk, sed, chmod, systemd, terminal.",
+      "version": "1.0.0",
+      "tags": "",
+      "allowed_tools": "",
+      "size_kb": 4.2,
+      "tags_list": []
+    },
+    {
+      "name": "behavioral-modes",
+      "tag": "meta",
+      "description": "AI operational modes for adapting behavior based on task type. Defines 7 modes: BRAINSTORM (explore ideas), IMPLEMENT (write code), DEBUG (investigate issues), REVIEW (analyze quality), TEACH (explain concepts), SHIP (production-ready delivery), ORCHESTRATE (multi-agent coordination). Use to explicitly set the AI's working mode for a session or task.",
+      "version": "1.0.0",
+      "tags": "",
+      "allowed_tools": "",
+      "size_kb": 5.5,
+      "tags_list": []
+    },
+    {
+      "name": "brainstorming",
+      "tag": "",
+      "description": "Socratic questioning protocol + user communication. MANDATORY for complex requests, new features, or unclear requirements. Includes progress reporting and error handling.",
+      "version": "1.0.0",
+      "tags": "",
+      "allowed_tools": "Read, Glob, Grep",
+      "size_kb": 4.6,
+      "tags_list": []
+    },
+    {
+      "name": "clean-code",
+      "tag": "",
+      "description": "Pragmatic coding standards \u2014 concise, direct, no over-engineering, no unnecessary comments. Use this skill whenever the user needs to apply clean code principles, review naming conventions, or simplify complex functions. Triggers on clean code, naming, SRP, DRY, KISS, function design, code quality.",
+      "version": "1.0.0",
+      "tags": "",
+      "allowed_tools": "",
+      "size_kb": 6.6,
+      "tags_list": []
+    },
+    {
+      "name": "context-budgeter",
+      "tag": "",
+      "description": "Enforces token/read budgets per phase to prevent context bloat and keep execution efficient.",
+      "version": "1.0.0",
+      "tags": "token, budgeting",
+      "allowed_tools": "Read, Glob, Grep, Bash",
+      "size_kb": 1.2,
+      "tags_list": [
+        "token",
+        "budgeting"
+      ]
+    },
+    {
+      "name": "context-ranker",
+      "tag": "",
+      "description": "Ranks candidate files and decides what to read first using workspace-map and lightweight heuristics.",
+      "version": "1.0.0",
+      "tags": "workspace, context, token",
+      "allowed_tools": "Read, Glob, Grep",
+      "size_kb": 1.4,
+      "tags_list": [
+        "workspace",
+        "context",
+        "token"
+      ]
+    },
+    {
+      "name": "context-validator",
+      "tag": "",
+      "description": "Pre-flight context harness to verify goals, specs, and required files are present before complex work.",
+      "version": "1.0.0",
+      "tags": "harness, context, token",
+      "allowed_tools": "Read, Glob, Grep, Bash",
+      "size_kb": 2.5,
+      "tags_list": [
+        "harness",
+        "context",
+        "token"
+      ]
+    },
+    {
+      "name": "evidence-checker",
+      "tag": "",
+      "description": "Requires evidence (errors/tests/build) before claiming a fix is complete.",
+      "version": "1.0.0",
+      "tags": "quality, verification, safety",
+      "allowed_tools": "Read, Grep, Bash",
+      "size_kb": 0.9,
+      "tags_list": [
+        "quality",
+        "verification",
+        "safety"
+      ]
+    },
+    {
+      "name": "expert-educator",
+      "tag": "",
+      "description": "Pedagogical mentor specialized in explaining complex technical concepts clearly and accessibly. Use this skill whenever the user expresses confusion, asks \"how does this work?\", \"why is it done this way?\", or needs a deep conceptual explanation. Triggers on explain, understand, how does, why, teach me, analogy, concept, I don't get it.",
+      "version": "1.0.0",
+      "tags": "",
+      "allowed_tools": "",
+      "size_kb": 3.2,
+      "tags_list": []
+    },
+    {
+      "name": "frontend-design",
+      "tag": "",
+      "description": "Design thinking and decision-making for web UI. Use when designing components, layouts, color schemes, typography, or creating aesthetic interfaces. Teaches principles, not fixed values.",
+      "version": "1.0.0",
+      "tags": "",
+      "allowed_tools": "Read, Write, Edit, Glob, Grep, Bash",
+      "size_kb": 12.2,
+      "tags_list": []
+    },
+    {
+      "name": "idea-structurer",
+      "tag": "",
+      "description": "Business idea structuring specialist. Use this skill whenever the user has an abstract idea for an app, software, or digital business and needs help turning it into a structured, concrete business model. Triggers on \"tenho uma ideia\", \"quero criar um app\", \"n\u00e3o sei por onde come\u00e7ar\", \"quero montar um neg\u00f3cio digital\", \"modelo de neg\u00f3cio\", \"como monetizar\", \"qual o MVP\". Conducts a Socratic brainstorming session and compiles the output into a Lean Canvas or Business Model Canvas with a concrete action plan.",
+      "version": "1.0.0",
+      "tags": "",
+      "allowed_tools": "",
+      "size_kb": 4.2,
+      "tags_list": []
+    },
+    {
+      "name": "intelligent-routing",
+      "tag": "meta",
+      "description": "Automatic agent selection and intelligent task routing. Use this skill on every user request to silently analyze intent, detect domains, assess complexity, and select the best specialist agent without requiring explicit user commands. Triggers automatically \u2014 no user keyword needed. Handles single-domain tasks (direct agent), multi-domain tasks (orchestrator), and edge cases like vague requests or contradictory signals. Always announces the selected agent before responding.",
+      "version": "1.0.0",
+      "tags": "",
+      "allowed_tools": "",
+      "size_kb": 6.9,
+      "tags_list": []
+    },
+    {
+      "name": "intent-expander",
+      "tag": "",
+      "description": "Expands short/vague requests into an implementation-ready mini-spec aligned with the repo conventions.",
+      "version": "1.0.0",
+      "tags": "spec, planning, quality",
+      "allowed_tools": "Read, Glob, Grep",
+      "size_kb": 1.2,
+      "tags_list": [
+        "spec",
+        "planning",
+        "quality"
+      ]
+    },
+    {
+      "name": "memory-curator",
+      "tag": "",
+      "description": "Governs what to store as user/session/repo memory while preventing noisy or sensitive memories.",
+      "version": "1.0.0",
+      "tags": "memory, privacy, token",
+      "allowed_tools": "Read, Write",
+      "size_kb": 1.0,
+      "tags_list": [
+        "memory",
+        "privacy",
+        "token"
+      ]
+    },
+    {
+      "name": "mobile-design",
+      "tag": "",
+      "description": "Mobile-first design thinking and decision-making for iOS and Android apps. Touch interaction, performance patterns, platform conventions. Use when building React Native, Flutter, or native mobile apps, or designing mobile-specific UI/UX. Triggers on mobile, React Native, Flutter, iOS, Android, touch, gestures, app store.",
+      "version": "1.0.0",
+      "tags": "",
+      "allowed_tools": "",
+      "size_kb": 15.2,
+      "tags_list": []
+    },
+    {
+      "name": "multimodal-prompt-orchestrator",
+      "tag": "",
+      "description": "Framework for orchestrating multimodal prompt iterations (image/video/audio) with clear constraints, verification, and minimal token waste.",
+      "version": "0.1.0",
+      "tags": "multimodal, orchestration, prompts",
+      "allowed_tools": "Read, Glob, Grep",
+      "size_kb": 1.4,
+      "tags_list": [
+        "multimodal",
+        "orchestration",
+        "prompts"
+      ]
+    },
+    {
+      "name": "multimodal-prompt-orchestrator-workspace",
+      "tag": "",
+      "description": "Workspace-oriented multimodal prompting workflow with eval folders and repeatable prompt iteration.",
+      "version": "0.1.0",
+      "tags": "multimodal, orchestration, workspace, evals",
+      "allowed_tools": "Read, Glob, Grep, Bash",
+      "size_kb": 1.2,
+      "tags_list": [
+        "multimodal",
+        "orchestration",
+        "workspace",
+        "evals"
+      ]
+    },
+    {
+      "name": "nextjs-react-expert",
+      "tag": "",
+      "description": "React and Next.js performance optimization from Vercel Engineering. Use when building React components, optimizing performance, eliminating waterfalls, reducing bundle size, reviewing code for performance issues, or implementing server/client-side optimizations.",
+      "version": "1.0.0",
+      "tags": "",
+      "allowed_tools": "Read, Write, Edit, Glob, Grep, Bash",
+      "size_kb": 9.7,
+      "tags_list": []
+    },
+    {
+      "name": "nodejs-best-practices",
+      "tag": "",
+      "description": "Node.js development principles and decision-making. Framework selection, async patterns, security, and architecture. Use this skill whenever the user is building Node.js services, choosing frameworks, handling async patterns, or applying backend security. Triggers on Node.js, Express, Fastify, async, event loop, middleware, npm, backend.",
+      "version": "1.0.0",
+      "tags": "",
+      "allowed_tools": "",
+      "size_kb": 8.2,
+      "tags_list": []
+    },
+    {
+      "name": "parallel-agents",
+      "tag": "",
+      "description": "Multi-agent orchestration patterns. Use when multiple independent tasks can run with different domain expertise or when comprehensive analysis requires multiple perspectives.",
+      "version": "1.0.0",
+      "tags": "",
+      "allowed_tools": "",
+      "size_kb": 5.2,
+      "tags_list": []
+    },
+    {
+      "name": "pii-secret-guard",
+      "tag": "",
+      "description": "Detects and redacts secrets/PII before adding logs/files to prompts or memory.",
+      "version": "1.0.0",
+      "tags": "safety, privacy",
+      "allowed_tools": "Read, Grep, Bash",
+      "size_kb": 1.0,
+      "tags_list": [
+        "safety",
+        "privacy"
+      ]
+    },
+    {
+      "name": "pilulafeed",
+      "tag": "",
+      "description": "Executes the PilulaFeed automated publishing pipeline in chat-driven mode. Claude acts as the LLM layer for all agents. No external API needed. Invokes with `/pilulafeed --spec <file>`.",
+      "version": "1.0",
+      "tags": "",
+      "allowed_tools": "",
+      "size_kb": 10.6,
+      "tags_list": []
+    },
+    {
+      "name": "prd-specialist",
+      "tag": "",
+      "description": "AI product requirements specialist for converting a raw idea into an implementation-ready PRD. Use this whenever the user asks to create, structure, refine, or validate a PRD, feature spec, or implementation scope for an AI-built product, including requirements, non-requirements, user flows, constraints, acceptance criteria, and delivery milestones.",
+      "version": "1.0.0",
+      "tags": "",
+      "allowed_tools": "",
+      "size_kb": 3.5,
+      "tags_list": []
+    },
+    {
+      "name": "prompt-formatter",
+      "tag": "",
+      "description": "Prompt engineering specialist using the COSTAR framework. Transforms raw, vague requests into structured, context-rich prompts for LLMs. Use this skill whenever the user needs to improve a prompt, structure a request for an AI model, or apply prompt engineering best practices. Triggers on prompt, COSTAR, prompt engineering, improve my prompt, structure this request.",
+      "version": "1.0.0",
+      "tags": "",
+      "allowed_tools": "",
+      "size_kb": 4.3,
+      "tags_list": []
+    },
+    {
+      "name": "prompt-to-media",
+      "tag": "",
+      "description": "Converts product/creative intent into media-model prompts (image/video/voice) with constraints, negatives, and variant strategy.",
+      "version": "0.1.0",
+      "tags": "multimodal, prompts, media",
+      "allowed_tools": "Read, Glob, Grep",
+      "size_kb": 1.0,
+      "tags_list": [
+        "multimodal",
+        "prompts",
+        "media"
+      ]
+    },
+    {
+      "name": "python-patterns",
+      "tag": "",
+      "description": "Python development principles and decision-making. Framework selection, async patterns, type hints, project structure. Use this skill whenever the user is building Python applications, choosing frameworks, applying type hints, or designing project structure. Triggers on Python, FastAPI, Django, asyncio, type hints, Pydantic, pip, virtual environment.",
+      "version": "1.0.0",
+      "tags": "",
+      "allowed_tools": "",
+      "size_kb": 3.9,
+      "tags_list": []
+    },
+    {
+      "name": "query-router",
+      "tag": "",
+      "description": "Maps a user request to intent, domains, Smart Tags, and the minimal set of agents/skills to load.",
+      "version": "1.0.0",
+      "tags": "routing, token",
+      "allowed_tools": "Read, Glob, Grep",
+      "size_kb": 1.3,
+      "tags_list": [
+        "routing",
+        "token"
+      ]
+    },
+    {
+      "name": "react-best-practices",
+      "tag": "",
+      "description": "React patterns, hooks discipline, component design and state management best practices. Use this skill whenever the user is building React components, managing state, writing custom hooks, or designing component architecture. Triggers on component, hooks, useState, useEffect, JSX, re-render, state management.",
+      "version": "1.0.0",
+      "tags": "",
+      "allowed_tools": "",
+      "size_kb": 2.9,
+      "tags_list": []
+    },
+    {
+      "name": "sdd-expert",
+      "tag": "",
+      "description": "Specification-Driven Development (SDD) Specialist. Use this skill whenever the user has a Product Requirements Document (PRD) or feature idea and needs to design the technical architecture, map out technical specs, identify high-priority AI/Agent workflows, or create detailed implementation specifications for AI coding agents. Triggers on \"create spec\", \"technical specifications\", \"SDD\", \"architectural spec\", \"review PRD for specs\", or \"map out components\".",
+      "version": "1.0.0",
+      "tags": "",
+      "allowed_tools": "",
+      "size_kb": 4.0,
+      "tags_list": []
+    },
+    {
+      "name": "server-management",
+      "tag": "",
+      "description": "Server management and operations specialist. Use this skill whenever the user needs to manage a production server, choose a process manager, set up monitoring, plan scaling, or handle server incidents. Triggers on \"manage server\", \"pm2\", \"nginx\", \"process management\", \"server monitoring\", \"scaling strategy\", \"server crash\", \"production server\", \"server health\", \"zero-downtime deploy\".",
+      "version": "1.0.0",
+      "tags": "",
+      "allowed_tools": "",
+      "size_kb": 3.8,
+      "tags_list": []
+    },
+    {
+      "name": "skill-creator",
+      "tag": "",
+      "description": "Create new skills, modify and improve existing skills, and measure skill performance. Use when users want to create a skill from scratch, edit, or optimize an existing skill, run evals to test a skill, benchmark skill performance with variance analysis, or optimize a skill's description for better triggering accuracy.",
+      "version": "1.0.0",
+      "tags": "",
+      "allowed_tools": "",
+      "size_kb": 33.0,
+      "tags_list": []
+    },
+    {
+      "name": "smart-tags",
+      "tag": "",
+      "description": "Tag-based context selection to reduce tokens by loading only the rule/skill fragments relevant to the current request.",
+      "version": "1.0.0",
+      "tags": "token, routing, smart-tags",
+      "allowed_tools": "Read, Glob, Grep",
+      "size_kb": 1.9,
+      "tags_list": [
+        "token",
+        "routing",
+        "smart-tags"
+      ]
+    },
+    {
+      "name": "spec-enforcer",
+      "tag": "",
+      "description": "Enforces \u201cspec before code\u201d on non-trivial tasks; blocks implementation until a spec exists.",
+      "version": "1.0.0",
+      "tags": "spec, harness, safety",
+      "allowed_tools": "Read, Write, Glob, Grep",
+      "size_kb": 1.3,
+      "tags_list": [
+        "spec",
+        "harness",
+        "safety"
+      ]
+    },
+    {
+      "name": "spec-normalizer",
+      "tag": "",
+      "description": "Converts a request into a minimal, testable spec (scope, acceptance criteria, validation) for coding.",
+      "version": "1.0.0",
+      "tags": "spec, planning",
+      "allowed_tools": "Read, Write, Glob, Grep",
+      "size_kb": 1.0,
+      "tags_list": [
+        "spec",
+        "planning"
+      ]
+    },
+    {
+      "name": "systematic-debugging",
+      "tag": "",
+      "description": "4-phase systematic debugging methodology with root cause analysis and evidence-based verification. Use when debugging complex issues.",
+      "version": "1.0.0",
+      "tags": "",
+      "allowed_tools": "",
+      "size_kb": 2.3,
+      "tags_list": []
+    },
+    {
+      "name": "tailwind-patterns",
+      "tag": "",
+      "description": "Tailwind CSS v4 specialist. Use this skill whenever the user is building or styling UI with Tailwind CSS \u2014 including v4 migration, CSS-first configuration, container queries, design tokens, and dark mode patterns. Triggers on \"Tailwind\", \"tailwind v4\", \"CSS classes\", \"design tokens\", \"container queries\", \"dark mode Tailwind\", \"utility classes\", \"Tailwind config\".",
+      "version": "1.0.0",
+      "tags": "",
+      "allowed_tools": "",
+      "size_kb": 6.8,
+      "tags_list": []
+    },
+    {
+      "name": "tdd-workflow",
+      "tag": "",
+      "description": "Test-Driven Development workflow specialist. Use this skill whenever the user wants to apply TDD, follow the RED-GREEN-REFACTOR cycle, or write tests before implementation. Triggers on \"TDD\", \"test-driven\", \"write the test first\", \"RED GREEN REFACTOR\", \"failing test\", \"test before code\", \"outside-in testing\".",
+      "version": "1.0.0",
+      "tags": "",
+      "allowed_tools": "",
+      "size_kb": 2.9,
+      "tags_list": []
+    },
+    {
+      "name": "testing-patterns",
+      "tag": "",
+      "description": "Testing strategy and implementation specialist. Use this skill whenever the user needs to write tests, design a test suite, choose between unit/integration/E2E testing, fix flaky tests, set up mocking, or improve test coverage. Triggers on \"write tests\", \"unit test\", \"integration test\", \"E2E test\", \"mocking\", \"test coverage\", \"flaky test\", \"test setup\", \"jest\", \"vitest\", \"pytest\", \"testing pyramid\", \"test data\", \"test organization\". Covers all test levels with AAA pattern, mock strategies, and anti-pattern detection.",
+      "version": "1.0.0",
+      "tags": "",
+      "allowed_tools": "",
+      "size_kb": 5.8,
+      "tags_list": []
+    },
+    {
+      "name": "token-compressor",
+      "tag": "",
+      "description": "Deterministically compresses long logs/text into high-signal excerpts to free context window.",
+      "version": "1.0.0",
+      "tags": "token, compression",
+      "allowed_tools": "Read, Bash, Grep",
+      "size_kb": 1.4,
+      "tags_list": [
+        "token",
+        "compression"
+      ]
+    },
+    {
+      "name": "token-management",
+      "tag": "",
+      "description": "Token-efficient request processing without reducing task quality. Use this skill whenever the user request is long, multi-part, repetitive, or likely to consume high context window. Also use when optimizing prompts, reducing token costs, preserving output fidelity, or handling large conversational history. Trigger even if the user does not explicitly mention tokens when context compression would improve efficiency.",
+      "version": "1.0.0",
+      "tags": "",
+      "allowed_tools": "Read, Glob, Grep, Bash",
+      "size_kb": 4.5,
+      "tags_list": []
+    },
+    {
+      "name": "web-design-guidelines",
+      "tag": "",
+      "description": "Review UI code for Web Interface Guidelines compliance. Use when asked to \"review my UI\", \"check accessibility\", \"audit design\", \"review UX\", or \"check my site against best practices\".",
+      "version": "1.0.0",
+      "tags": "",
+      "allowed_tools": "",
+      "size_kb": 1.7,
+      "tags_list": []
+    },
+    {
+      "name": "webapp-testing",
+      "tag": "",
+      "description": "Web application testing specialist. Use this skill whenever the user needs to test a web app end-to-end, set up Playwright, audit critical user flows, or design a testing strategy for a web project. Triggers on \"test my web app\", \"Playwright\", \"E2E test\", \"browser test\", \"test user flows\", \"automation testing\", \"test the frontend\", \"audit the app\".",
+      "version": "1.0.0",
+      "tags": "",
+      "allowed_tools": "",
+      "size_kb": 4.0,
+      "tags_list": []
+    },
+    {
+      "name": "workspace-mapper",
+      "tag": "",
+      "description": "Maps all files in the current repository, collecting metadata (size, type, description) and saving it to `.ai-context/workspace-map.json`. Use this skill whenever the `workspace-guard` rule indicates the map is missing or when you need a precise overview of the project to locate files without slow manual searches.",
+      "version": "",
+      "tags": "",
+      "allowed_tools": "",
+      "size_kb": 1.7,
+      "tags_list": []
+    }
+  ],
+  "agents": [
+    {
+      "name": "debugger",
+      "description": "Expert in systematic debugging, root cause analysis, and crash investigation. Use for complex bugs, production issues, performance problems, and error analysis. Triggers on bug, error, crash, not working, broken, investigate, fix.",
+      "skills": "clean-code, systematic-debugging",
+      "tags": "",
+      "size_kb": 8.0,
+      "tags_list": []
+    },
+    {
+      "name": "frontend-specialist",
+      "description": "Senior Frontend Architect who builds maintainable React/Next.js systems with performance-first mindset. Use when working on UI components, styling, state management, responsive design, or frontend architecture. Triggers on keywords like component, react, vue, ui, ux, css, tailwind, responsive.",
+      "skills": "clean-code, react-best-practices, web-design-guidelines, tailwind-patterns, frontend-design",
+      "tags": "",
+      "size_kb": 25.2,
+      "tags_list": []
+    },
+    {
+      "name": "mobile-developer",
+      "description": "Expert in React Native and Flutter mobile development. Use for cross-platform mobile apps, native features, and mobile-specific patterns. Triggers on mobile, react native, flutter, ios, android, app store, expo.",
+      "skills": "clean-code, mobile-design",
+      "tags": "",
+      "size_kb": 12.6,
+      "tags_list": []
+    },
+    {
+      "name": "orchestrator",
+      "description": "Multi-agent coordination and task orchestration. Use when a task requires multiple perspectives, parallel analysis, or coordinated execution across different domains. Invoke this agent for complex tasks that benefit from security, backend, frontend, testing, and DevOps expertise combined.",
+      "skills": "clean-code, parallel-agents, behavioral-modes, brainstorming, architecture, bash-linux",
+      "tags": "",
+      "size_kb": 13.5,
+      "tags_list": []
+    },
+    {
+      "name": "test-engineer",
+      "description": "Expert in testing, TDD, and test automation. Use for writing tests, improving coverage, debugging test failures. Triggers on test, spec, coverage, jest, pytest, playwright, e2e, unit test.",
+      "skills": "clean-code, testing-patterns, tdd-workflow, webapp-testing",
+      "tags": "",
+      "size_kb": 3.3,
+      "tags_list": []
+    }
+  ],
+  "workflows": [
+    {
+      "name": "debug",
+      "description": "Debugging command. Activates DEBUG mode for systematic problem investigation.",
+      "tags": "",
+      "size_kb": 1.7,
+      "tags_list": []
+    },
+    {
+      "name": "harness",
+      "description": "Context harness command. Runs a pre-flight checklist before moderate/complex work to prevent missing-context errors.",
+      "tags": "",
+      "size_kb": 1.1,
+      "tags_list": []
+    }
+  ],
+  "specs": [
+    {
+      "name": "prompt-middleware",
+      "description": "Request-to-context middleware pipeline for AI Context (harness, Smart Tags, token budgeting, and verification).",
+      "version": "1.0.0",
+      "tags": "middleware, harness, smart-tags, token",
+      "size_kb": 3.2,
+      "tags_list": [
+        "middleware",
+        "harness",
+        "smart-tags",
+        "token"
+      ]
+    }
+  ]
+}

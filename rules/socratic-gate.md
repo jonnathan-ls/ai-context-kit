@@ -2,6 +2,7 @@
 priority: P0
 trigger: always_on
 description: Clarification gate — ask before assuming on ambiguous or destructive requests
+tags: safety, clarification, scope
 ---
 
 # Socratic Gate

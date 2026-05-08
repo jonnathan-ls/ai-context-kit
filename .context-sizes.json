@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-05-07T21:53:25",
+  "generatedAt": "2026-05-07T22:44:43",
   "contextEnabled": true,
-  "contextRoot": "~/.ai-context/.aictx-runtime/current",
+  "contextRoot": "/home/jonnathan/.ai-context/.aictx-runtime/current",
   "units": "KB",
   "thresholds": {
     "safe": 40,
@@ -11,22 +11,22 @@
   },
   "baseline": {
     "rules_kb": 12.6,
-    "meta_skills_kb": 10.6,
-    "total_kb": 23.2,
+    "meta_skills_kb": 12.4,
+    "total_kb": 25.0,
     "meta_skills": [
       "behavioral-modes",
       "intelligent-routing"
     ]
   },
   "rules": {
-    "ALWAYS": 3.3,
-    "agent-protocol": 1.6,
+    "ALWAYS": 2.9,
+    "agent-protocol": 1.7,
     "checklist-protocol": 0.9,
     "code-standards": 1.7,
     "language-policy": 0.7,
-    "response-discipline": 1.5,
-    "socratic-gate": 1.4,
-    "workspace-guard": 1.5
+    "response-discipline": 1.6,
+    "socratic-gate": 1.5,
+    "workspace-guard": 1.6
   },
   "skills": {
     "architecture": 1.9,
@@ -34,29 +34,41 @@
     "behavioral-modes": 5.5,
     "brainstorming": 4.6,
     "clean-code": 6.6,
+    "context-budgeter": 1.2,
+    "context-ranker": 1.4,
+    "context-validator": 2.5,
+    "evidence-checker": 0.9,
     "expert-educator": 3.2,
     "frontend-design": 12.2,
     "idea-structurer": 4.2,
-    "intelligent-routing": 5.1,
+    "intelligent-routing": 6.9,
+    "intent-expander": 1.2,
+    "memory-curator": 1.0,
     "mobile-design": 15.2,
-    "multimodal-prompt-orchestrator": 0.1,
-    "multimodal-prompt-orchestrator-workspace": 0.1,
+    "multimodal-prompt-orchestrator": 1.4,
+    "multimodal-prompt-orchestrator-workspace": 1.2,
     "nextjs-react-expert": 9.7,
     "nodejs-best-practices": 8.2,
     "parallel-agents": 5.2,
+    "pii-secret-guard": 1.0,
     "pilulafeed": 10.6,
     "prd-specialist": 3.5,
     "prompt-formatter": 4.3,
-    "prompt-to-media": 0.1,
+    "prompt-to-media": 1.0,
     "python-patterns": 3.9,
+    "query-router": 1.3,
     "react-best-practices": 2.9,
     "sdd-expert": 4.0,
     "server-management": 3.8,
     "skill-creator": 33.0,
+    "smart-tags": 1.9,
+    "spec-enforcer": 1.3,
+    "spec-normalizer": 1.0,
     "systematic-debugging": 2.3,
     "tailwind-patterns": 6.8,
     "tdd-workflow": 2.9,
     "testing-patterns": 5.8,
+    "token-compressor": 1.4,
     "token-management": 4.5,
     "web-design-guidelines": 1.7,
     "webapp-testing": 4.0,
@@ -72,6 +84,7 @@
     "test-engineer": 3.3
   },
   "workflows": {
-    "debug": 1.7
+    "debug": 1.7,
+    "harness": 1.1
   }
 }

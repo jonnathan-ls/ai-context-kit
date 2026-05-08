@@ -4,6 +4,7 @@ description: Language policy for chat responses vs generated documents. Chat res
 type: rule
 priority: P0
 trigger: always_on
+tags: core, language
 ---
 
 # Language Policy

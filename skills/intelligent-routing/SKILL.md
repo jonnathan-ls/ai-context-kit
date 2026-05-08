@@ -16,11 +16,62 @@ Apply these steps before responding to any request:
 1. **Classify** — Determine request type (question, task, plan, review).
 2. **Detect domains** — Match keywords to domain categories.
 3. **Assess complexity** — Simple (1 domain), moderate (2 domains), complex (3+ or unclear).
-4. **Select agent(s)** — Use the matrix below.
-5. **Announce** — Output the agent label before the response.
-6. **Respond** — Deliver with the selected specialist's knowledge applied.
+4. **Select Smart Tags** — Choose the minimal tags/rules/skills needed (token-optimized).
+5. **Run Context Harness (if needed)** — For moderate/complex tasks, validate context before action.
+6. **Select agent(s)** — Use the matrix below.
+7. **Announce** — Output the agent label before the response.
+8. **Respond** — Deliver with the selected specialist's knowledge applied.
 
-Never skip step 5. Transparent selection builds trust and is easy to override.
+Never skip the announcement step. Transparent selection builds trust and is easy to override.
+
+## Smart Tags (Token-Optimized Injection)
+
+Goal: avoid loading irrelevant rule/skill content.
+
+1. Always include `core` constraints (scope, safety, language policy).
+2. Add only tags that change decisions (examples below).
+3. If the request is long/noisy, apply `token` + `token-compressor`.
+
+Suggested tag mapping:
+
+- Pure Q&A: `core`
+- Simple single-file change: `core, quality`
+- Repo navigation: `core, workspace`
+- Big logs / long prompts: `core, token`
+- Feature build/refactor: `core, harness, spec, quality`
+
+If a tag does not change what you will read/do/verify, do not add it.
+
+## Context Harness (Pre-Flight)
+
+For moderate/complex tasks, load and apply:
+
+- `context-validator` — pre-flight harness (goal/scope/spec/files/validation)
+- `context-ranker` — pick top-K files to read first
+- `context-budgeter` — cap discovery reads
+
+If the harness result is **BLOCK**, ask up to 2 targeted questions.
+
+## Spec Gate (Before Non-Trivial Code)
+
+If the request includes build/implement/refactor or is multi-file/high-risk:
+
+- Enforce `spec-enforcer`.
+- If needed, generate a minimal spec via `spec-normalizer` (or `sdd-expert` for deeper work).
+
+Only implement after the spec is accepted (or the task is trivial).
+
+## Compression (Before Reasoning)
+
+If the user pasted long logs or tool output:
+
+- Load `token-compressor` and produce a compressed excerpt **with evidence preserved**.
+
+## Evidence (Before Claiming Done)
+
+Before finalizing implementation output:
+
+- Load `evidence-checker` and provide at least one credible verification step (errors/tests/build).
 
 ## Agent Selection Matrix
 

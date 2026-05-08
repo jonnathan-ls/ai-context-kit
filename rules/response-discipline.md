@@ -4,6 +4,7 @@ name: response-discipline
 description: Enforces strict response boundaries, scope control, and token efficiency.
 version: 1.0.0
 priority: P0
+tags: core, scope, token
 ---
 
 # Response Discipline Protocol

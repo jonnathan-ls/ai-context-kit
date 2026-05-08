@@ -2,6 +2,7 @@
 priority: P0
 trigger: always_on
 description: Pre-response checklist and final validation gate before delivering any output
+tags: core, safety, validation
 ---
 
 # Checklist Protocol
