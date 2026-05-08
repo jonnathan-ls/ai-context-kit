@@ -20,7 +20,7 @@ This skill provides the ability to generate a structured repository map to assis
 ## Command
 Run the following command in the terminal:
 ```bash
-python3 /home/jonnathan/.ai-context/skills/workspace-mapper/scripts/mapper.py
+python3 ~/.ai-context/skills/workspace-mapper/scripts/mapper.py
 ```
 
 ## Output Structure

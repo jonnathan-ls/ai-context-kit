@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "generatedAt": "2026-05-07T21:53:25",
   "contextEnabled": true,
-  "contextRoot": "/home/jonnathan/.ai-context/.aictx-runtime/current",
+  "contextRoot": "~/.ai-context/.aictx-runtime/current",
   "units": "KB",
   "thresholds": {
     "safe": 40,
