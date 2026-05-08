@@ -1,3 +1,10 @@
 {
-  "context_enabled": true
+  "last_sync": "2026-05-07",
+  "counts": {
+    "rules": 7,
+    "skills": 30,
+    "agents": 7,
+    "workflows": 1,
+    "specs": 0
+  }
 }

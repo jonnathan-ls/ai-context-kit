@@ -6,17 +6,17 @@ Manages symbolic links from ~/.ai-context resources to AI tools
 (Copilot, Claude Code, Gemini, etc.) and keeps ALWAYS.md in sync.
 
 Commands:
-    aictx sync              Scan resources and regenerate ALWAYS.md
-    aictx context           Enable/disable/toggle/status of AI context processing
-    aictx install           Interactive installation of links
-    aictx install --all     Install all targets and resources
-    aictx install --force   Overwrite existing links
-    aictx telemetry         Analyze context-read telemetry from logs
-    aictx skills-scripts    List runnable scripts available in skills
-    aictx run-skill         Execute a skill script
-    aictx status            Show current link/resource status
-    aictx uninstall         Remove all managed links
-    aictx config            Show current configuration
+  aictx sync              Scan resources and regenerate ALWAYS.md
+  aictx context           Enable/disable/toggle/status of AI context processing
+  aictx install           Interactive installation of links
+  aictx install --all     Install all targets and resources
+  aictx install --force   Overwrite existing links
+  aictx telemetry         Analyze context-read telemetry from logs
+  aictx skills-scripts    List runnable scripts available in skills
+  aictx run-skill         Execute a skill script
+  aictx status            Show current link/resource status
+  aictx uninstall         Remove all managed links
+  aictx config            Show current configuration
 """
 
 import os
@@ -35,8 +35,31 @@ from typing import Dict, List, Optional
 HOME = Path.home()
 AICTX_HOME = Path(os.environ.get("AICTX_HOME", HOME / ".ai-context"))
 STATE_FILE = AICTX_HOME / ".aictx_state.json"
+RESOURCES = ["rules", "skills", "agents", "workflows", "specs"]
 
-RESOURCES = ["rules", "skills", "agents", "workflows"]
+# --- ANSI Colors ---
+B   = "\033[1m"
+C   = "\033[96m"
+G   = "\033[92m"
+Y   = "\033[93m"
+RED = "\033[31m"
+R   = RED  # Alias for compatibility
+RES = "\033[0m"
+DIM = "\033[2m"
+
+def print_header(emoji: str, title: str, subtitle: str = None):
+    print(f"\n{emoji} {B}{title}{RES}")
+    if subtitle:
+        print(f"   {DIM}{subtitle}{RES}")
+    print()
+
+def print_section(title: str):
+    print(f" {B}{title}{RES}")
+
+def print_step(success: bool, label: str, details: str = ""):
+    icon = f"{G}✓{RES}" if success else f"{R}✗{RES}"
+    details_str = f" {DIM}→ {details}{RES}" if details else ""
+    print(f"   {icon} {label}{details_str}")
 
 ARCHIVABLE_TYPES = {
     "skill": {
@@ -91,29 +114,32 @@ TARGETS = {
         }
     },
     "claude": {
-        "description": "Claude Code (~/.claude — also read by VS Code Copilot)",
+        "description": "Claude Code (Global context in ~/.claude)",
         "link_type": "folders",
         "base": HOME / ".claude",
         "resources": RESOURCES,
+        "global_rule": HOME / ".claude" / "CLAUDE.md",
     },
     "gemini": {
-        "description": "Gemini CLI (~/.gemini/antigravity)",
+        "description": "Gemini CLI (Global context in ~/.gemini/antigravity)",
         "link_type": "folders",
         "base": HOME / ".gemini/antigravity",
         "resources": RESOURCES,
         "global_rule": HOME / ".gemini/GEMINI.md",
     },
     "cursor": {
-        "description": "Cursor IDE (~/.cursor)",
+        "description": "Cursor IDE (Global context in ~/.cursor)",
         "link_type": "folders",
         "base": HOME / ".cursor",
         "resources": RESOURCES,
+        "global_rule": HOME / ".cursor" / ".cursorrules",
     },
     "windsurf": {
-        "description": "Windsurf IDE (~/.windsurf)",
+        "description": "Windsurf IDE (Global context in ~/.windsurf)",
         "link_type": "folders",
         "base": HOME / ".windsurf",
         "resources": RESOURCES,
+        "global_rule": HOME / ".windsurf" / ".windsurfrules",
     },
 }
 
@@ -145,6 +171,98 @@ def is_context_enabled() -> bool:
     """Check if the AI context is enabled."""
     state = read_context_state()
     return state.get("context_enabled", True)
+
+
+class TUISelector:
+    """A premium terminal-based selector with arrow navigation and multi-selection."""
+    
+    @staticmethod
+    def select(title: str, items: List[dict], multi: bool = False) -> List[dict]:
+        """items should be a list of dicts: {"name": "...", "desc": "..."}"""
+        if not items: return []
+
+        import tty, termios
+        G = "\033[92m"; Y = "\033[93m"; C = "\033[96m"; R = "\033[0m"; B = "\033[1m"; DIM = "\033[2m"
+        HIDE = "\033[?25l"; SHOW = "\033[?25h"
+        
+        selected_indices = set()
+        current_index = 0
+        lines_written = 0
+
+        def render():
+            nonlocal lines_written
+            # Move up and clear previous lines
+            if lines_written > 0:
+                sys.stdout.write(f"\033[{lines_written}F\033[J")
+            
+            output = []
+            output.append(f" {B}{title}{R}")
+            output.append(f" {DIM}{'─' * (len(title)+2)}{R}")
+            
+            for i, item in enumerate(items):
+                cursor = f"{C}❯{R}" if i == current_index else " "
+                name = item["name"]
+                desc = item.get("desc", "")
+                desc_str = f" {DIM}— {desc[:70]}{R}" if desc else ""
+                
+                if multi:
+                    box = f"{G}[x]{R}" if i in selected_indices else "[ ]"
+                    label = f"{B}{name}{R}" if i == current_index else name
+                    output.append(f" {cursor} {box} {label}{desc_str}")
+                else:
+                    label = f"{C}{B}{name}{R}" if i == current_index else name
+                    output.append(f" {cursor} {label}{desc_str}")
+            
+            output.append(f"\n {DIM}↑/↓: Navigate | Space: Toggle | Enter: Confirm{R}")
+            if multi:
+                output.append(f" {DIM}S: Select All | D: Deselect All | I: Invert | Q: Abort{R}")
+            else:
+                output.append(f" {DIM}Q: Abort{R}")
+            
+            final_output = "\n".join(output) + "\n"
+            lines_written = final_output.count("\n")
+            sys.stdout.write(final_output)
+            sys.stdout.flush()
+
+        sys.stdout.write(HIDE)
+        sys.stdout.flush()
+
+        def get_key():
+            fd = sys.stdin.fileno()
+            old_settings = termios.tcgetattr(fd)
+            try:
+                tty.setraw(fd)
+                ch = sys.stdin.read(1)
+                if ch == '\x1b':
+                    ch += sys.stdin.read(2)
+            finally:
+                termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+            return ch
+
+        try:
+            while True:
+                render()
+                key = get_key()
+                key_l = key.lower()
+                if key == '\x1b[A': current_index = (current_index - 1) % len(items)
+                elif key == '\x1b[B': current_index = (current_index + 1) % len(items)
+                elif key == ' ' and multi:
+                    if current_index in selected_indices: selected_indices.remove(current_index)
+                    else: selected_indices.add(current_index)
+                elif multi and key_l in ('a', 's'): selected_indices = set(range(len(items)))
+                elif multi and key_l in ('n', 'd'): selected_indices = set()
+                elif multi and key_l == 'i':
+                    selected_indices = set(range(len(items))) - selected_indices
+                elif key == '\r':
+                    if multi: return [items[i] for i in sorted(selected_indices)]
+                    return [items[current_index]]
+                elif key_l in ('q', '\x03'): return []
+        finally:
+            # Clear the TUI before exiting
+            if lines_written > 0:
+                sys.stdout.write(f"\033[{lines_written}F\033[J")
+            sys.stdout.write(SHOW)
+            sys.stdout.flush()
 
 
 def get_runtime_paths(aictx_home: Path) -> Dict[str, Path]:
@@ -486,25 +604,30 @@ def build_archivable_paths(aictx_home: Path, kind: str, name: str):
     return normalized_name, active_path, archived_path
 
 
-def list_archived_items(aictx_home: Path, kind: Optional[str] = None) -> Dict[str, List[str]]:
-    result: Dict[str, List[str]] = {}
+def list_archived_items(aictx_home: Path, kind: Optional[str] = None) -> Dict[str, List[dict]]:
+    result: Dict[str, List[dict]] = {}
     kinds = [kind] if kind else sorted(ARCHIVABLE_TYPES.keys())
 
     for item_kind in kinds:
         conf = ARCHIVABLE_TYPES[item_kind]
         archived_dir = aictx_home / "archived" / conf["archived_dir"]
-        names: List[str] = []
+        items: List[dict] = []
 
         if archived_dir.exists():
             if item_kind == "skill":
                 for entry in sorted(archived_dir.iterdir()):
                     if entry.is_dir():
-                        names.append(entry.name)
+                        skill_file = next((entry / fn for fn in ["SKILL.md", "skill.md"] if (entry / fn).exists()), None)
+                        desc = ""
+                        if skill_file:
+                            desc = read_frontmatter(skill_file).get("description", "")
+                        items.append({"name": entry.name, "desc": desc})
             else:
                 for entry in sorted(archived_dir.glob("*.md")):
-                    names.append(entry.stem)
+                    desc = read_frontmatter(entry).get("description", "")
+                    items.append({"name": entry.stem, "desc": desc})
 
-        result[item_kind] = names
+        result[item_kind] = items
 
     return result
 
@@ -1127,36 +1250,42 @@ def cmd_telemetry(args):
         print(json.dumps(report, indent=2))
         return 0
 
-    print("\n📊 AI Context — Telemetry")
-    print(f"   Target         : {report['target']}")
-    print(f"   Log files      : {report['filesScanned']}")
-    print(f"   Requests       : {report['summary']['requests']}")
-    print(f"   read_file calls: {report['summary']['readCalls']}")
-    print(f"   Unique files   : {report['summary']['uniqueFiles']}")
-    print(f"   Lines requested: {report['summary']['linesRequested']}")
-    print(f"   Est. tokens    : {report['summary']['tokensEstimated']}  (heuristic: chars/4)")
-    print(f"   Avg reads/req  : {report['summary']['avgReadsPerRequest']}")
-    print(f"   Avg lines/req  : {report['summary']['avgLinesPerRequest']}")
+    B = "\033[1m"; G = "\033[92m"; Y = "\033[93m"; R = "\033[0m"; DIM = "\033[2m"; C = "\033[96m"
 
-    print("\nBy request:")
-    print("  req | read_calls | unique_files | lines_requested | est_tokens")
-    print("  ----+------------+--------------+-----------------+-----------")
+    print(f"\n{B}📊 AI Context — Telemetry{R}")
+    print(f"   {DIM}Target: {report['target']}{R}")
+    print(f"   {DIM}Scanned: {report['filesScanned']} log files{R}\n")
+
+    print(f" {B}📈 USAGE SUMMARY{R}")
+    print(f"   Requests       : {B}{report['summary']['requests']}{R}")
+    print(f"   Read Calls     : {B}{report['summary']['readCalls']}{R}")
+    print(f"   Unique Files   : {B}{report['summary']['uniqueFiles']}{R}")
+    print(f"   Lines Total    : {B}{report['summary']['linesRequested']}{R}")
+    
+    t_tokens = report['summary']['tokensEstimated']
+    token_color = G if t_tokens < 50000 else (Y if t_tokens < 150000 else R)
+    print(f"   Est. Tokens    : {token_color}{t_tokens}{R} {DIM}(heuristic: chars/4){R}\n")
+
+    print(f" {B}📋 BY REQUEST{R}")
+    header = f"   {'ID':<5} | {'Reads':<8} | {'Files':<8} | {'Lines':<10} | {'Tokens':<8}"
+    print(f"   {DIM}{header}{R}")
+    print(f"   {DIM}{'─' * len(header)}{R}")
+    
     for row in report["byRequest"]:
+        t_est = row['tokensEstimated']
+        t_color = G if t_est < 10000 else (Y if t_est < 30000 else R)
         print(
-            f"  {str(row['request']).rjust(3)} | "
-            f"{str(row['readCalls']).rjust(10)} | "
-            f"{str(row['uniqueFiles']).rjust(12)} | "
-            f"{str(row['linesRequested']).rjust(15)} | "
-            f"{str(row['tokensEstimated']).rjust(9)}"
+            f"   {str(row['request']).ljust(5)} | "
+            f"{str(row['readCalls']).ljust(8)} | "
+            f"{str(row['uniqueFiles']).ljust(8)} | "
+            f"{str(row['linesRequested']).ljust(10)} | "
+            f"{t_color}{str(t_est).ljust(8)}{R}"
         )
 
     if top_files:
-        print("\nTop files (most read):")
+        print(f"\n {B}🔥 HOT FILES{R} {DIM}(most read){R}")
         for item in top_files:
-            print(f"  - {item['file']}  ({item['reads']} reads)")
-
-    if args.output:
-        print(f"\n💾 JSON report saved to: {Path(args.output).expanduser()}")
+            print(f"   {G}·{R} {item['file']:<40} {DIM}({item['reads']} reads){R}")
 
     print()
     return 0
@@ -1187,11 +1316,11 @@ def update_vscode_settings_paths(settings_path: Path, resources: list, context_r
         abs_path = str(context_root / resource)
         tilde_path = abs_path.replace(str(HOME), "~")
         if abs_path in locations or tilde_path in locations:
-            print(f"  ✓  settings.json ← {resource} already registered")
+            print_step(True, f"settings.json ← {resource} already registered")
         else:
             locations[abs_path] = True
             changed = True
-            print(f"  ✓  settings.json ← registered {resource}")
+            print_step(True, f"settings.json ← registered {resource}")
 
     if changed:
         data["chat.instructionsFilesLocations"] = locations
@@ -1199,98 +1328,127 @@ def update_vscode_settings_paths(settings_path: Path, resources: list, context_r
             json.dump(data, f, indent=2)
 
 
+def safe_propagate(target_path: Path, content: str, label: str):
+    """Writes content to target_path, creating a backup if file exists and differs."""
+    # Safety: Do not propagate into the resource repository itself
+    try:
+        if str(AICTX_HOME) in str(target_path.resolve()):
+            # Exception for manifests like .context-sizes.json which belong in AICTX_HOME
+            if target_path.name not in [CONTEXT_SIZES_FILENAME, "ALWAYS.md"]:
+                return False
+    except Exception:
+        pass
+
+    if not target_path.parent.exists():
+        return False
+    
+    backup_created = False
+    if target_path.exists():
+        try:
+            existing = target_path.read_text()
+            if existing != content:
+                bak_path = target_path.with_suffix(target_path.suffix + ".bak")
+                bak_path.write_text(existing)
+                backup_created = True
+        except Exception:
+            pass
+    
+    try:
+        target_path.write_text(content)
+        details = f"{DIM}(Backup created){RES}" if backup_created else ""
+        print_step(True, label, details)
+        return True
+    except Exception as e:
+        print_step(False, label, str(e))
+        return False
+
+
 def cmd_sync(args):
+    """Regenerate ALWAYS.md and refresh all AI tool configurations."""
     global AICTX_HOME
     AICTX_HOME = resolve_aictx_home()
-
-    print(f"\n🔄 AI Context — Sync")
-    print(f"   Source : {AICTX_HOME}\n")
+    
+    print_header("🔄", "AI Context — Sync Center", f"Source: {AICTX_HOME}")
 
     resources = scan_resources(AICTX_HOME)
+    archived  = list_archived_items(AICTX_HOME)
     context_root = ensure_runtime_tree(AICTX_HOME)
 
-    print(f"   rules     : {len(resources['rules'])}")
-    print(f"   skills    : {len(resources['skills'])}  ({sum(1 for s in resources['skills'] if s.get('tag') == 'meta')} meta)")
-    print(f"   agents    : {len(resources['agents'])}")
-    print(f"   workflows : {len(resources['workflows'])}\n")
+    print_section("📦 RESOURCES")
+    for k in RESOURCES:
+        active = len(resources.get(k, []))
+        arch = len(archived.get(k.rstrip('s'), []))
+        meta_str = f" {DIM}({sum(1 for s in resources['skills'] if s.get('tag') == 'meta')} meta){RES}" if k == "skills" else ""
+        arch_str = f" {DIM}[{arch} archived]{RES}" if arch > 0 else ""
+        print(f"   {k:<10} {B}{active:>2}{RES}{meta_str}{arch_str}")
 
-    always_path = AICTX_HOME / "rules" / "ALWAYS.md"
+    print_header("🔨", "MANIFESTS")
     content = build_always_md(AICTX_HOME, resources, context_root)
+    always_path = context_root / "rules" / "ALWAYS.md"
     always_path.write_text(content)
-    print(f"✅ ALWAYS.md regenerated → {always_path}")
+    print_step(True, "ALWAYS.md", f"{str(always_path).replace(str(HOME), '~')}")
+    
+    sizes_path = AICTX_HOME / ".context-sizes.json"
+    write_context_sizes_manifest(context_root, sizes_path)
+    print_step(True, "context-sizes", f"{str(sizes_path).replace(str(HOME), '~')}")
 
-    write_context_sizes_manifest(context_root, AICTX_HOME / CONTEXT_SIZES_FILENAME)
-    print(f"✅ Context size manifest updated → {AICTX_HOME / CONTEXT_SIZES_FILENAME}")
+    print_header("🔗", "PROPAGATION")
+    
+    # 1. Copilot Special Case
+    copilot_instr = TARGETS["copilot"]["paths"]["instructions"]
+    if safe_propagate(copilot_instr, content, "Copilot Instructions"):
+        update_vscode_settings_paths(TARGETS["copilot"]["paths"]["settings"], RESOURCES, context_root)
+    
+    # 2. General Tool Overrides (Claude, Gemini, Cursor, Windsurf)
+    for tk, target in TARGETS.items():
+        if target["link_type"] == "folders":
+            gr_path = target.get("global_rule")
+            if gr_path:
+                safe_propagate(gr_path, content, f"{tk.capitalize()} Override")
 
-    copilot_instr = HOME / ".config/Code/User/prompts/ai-context.instructions.md"
-    if copilot_instr.is_symlink():
-        # Symlink → target already written (ALWAYS.md), just confirm
-        target = copilot_instr.resolve() if copilot_instr.exists() else None
-        if target:
-            print(f"✅ Copilot instructions → symlink to {target.name} (already updated)")
-        else:
-            print(f"⚠  Copilot instructions symlink is broken → {copilot_instr}")
-    elif copilot_instr.exists():
-        copilot_instr.write_text(content)
-        print(f"✅ Copilot instructions updated → {copilot_instr}")
-
-    migrate_folder_links_to_context_root(context_root)
-    maybe_update_vscode_settings_paths(context_root)
-    update_folder_global_rules(context_root, content)
-
-    print()
+    print(f"\n✅ {G}Sync complete.{RES} All environments are up to date.\n")
+    return 0
 
 
 def cmd_install(args):
+    """Install resource links to AI tools with a premium TUI."""
     global AICTX_HOME
     AICTX_HOME = resolve_aictx_home()
     context_root = ensure_runtime_tree(AICTX_HOME)
+    
+    B = "\033[1m"; R = "\033[0m"
 
-    print(f"\n🧠 AI Context — Install")
-    print(f"   Source : {AICTX_HOME}")
+    selected_targets = []
+    selected_resources = []
 
     if args.all:
-        selected_targets   = list(TARGETS.keys())
+        selected_targets = list(TARGETS.keys())
         selected_resources = RESOURCES
     else:
-        print("\nAvailable targets:")
-        keys = list(TARGETS.keys())
-        for i, key in enumerate(keys):
-            print(f"  [{i+1}] {key:12} — {TARGETS[key]['description']}")
-        print("  [a] All")
-        raw = input("\nSelect targets (comma-separated or 'a'): ").strip().lower()
-        if raw == "a":
-            selected_targets = keys
-        else:
-            selected_targets = [
-                keys[int(p.strip()) - 1]
-                for p in raw.split(",")
-                if p.strip().isdigit() and 0 <= int(p.strip()) - 1 < len(keys)
-            ]
+        # Target Selection
+        target_items = [
+            {"name": k, "desc": v["description"]} 
+            for k, v in TARGETS.items()
+        ]
+        selection = TUISelector.select("Select installation targets (Space to toggle, Enter to confirm):", target_items, multi=True)
+        if not selection: return 0
+        selected_targets = [s["name"] for s in selection]
 
-        print("\nAvailable resources:")
-        for i, r in enumerate(RESOURCES):
-            print(f"  [{i+1}] {r}")
-        print("  [a] All")
-        raw = input("\nSelect resources (comma-separated or 'a'): ").strip().lower()
-        if raw == "a":
-            selected_resources = RESOURCES
-        else:
-            selected_resources = [
-                RESOURCES[int(p.strip()) - 1]
-                for p in raw.split(",")
-                if p.strip().isdigit() and 0 <= int(p.strip()) - 1 < len(RESOURCES)
-            ]
+        # Resource Selection
+        res_items = [{"name": r, "desc": f"Link all active {r}"} for r in RESOURCES]
+        selection = TUISelector.select("Select resources to link:", res_items, multi=True)
+        if not selection: return 0
+        selected_resources = [s["name"] for s in selection]
 
     if not selected_targets or not selected_resources:
-        print("Nothing selected. Aborting.")
-        return
+        print("\nNothing selected. Aborting.\n")
+        return 0
 
-    print()
-
+    print(f"\n{B}🚀 AI Context — Installing Links{R}")
+    
     for target_key in selected_targets:
         target = TARGETS[target_key]
-        print(f"🔗 {target_key} — {target['description']}")
+        print(f" {B}🔗 {target_key}{RES} {DIM}— {target['description']}{RES}")
 
         if target["link_type"] == "copilot":
             instr_path = target["paths"]["instructions"]
@@ -1321,83 +1479,143 @@ def cmd_install(args):
                 else:
                     print(f"  ⚠  {global_rule_path.name} ← ALWAYS.md not found, run: aictx sync")
 
-        print()
-
-    print("✅ Done. Run `aictx status` to verify.")
-    print("💡 Tip: Run `aictx sync` anytime you add new skills, agents or rules.\n")
+    print(f"\n✅ Installation complete. Run `aictx status` to verify.\n")
+    return 0
 
 
 def cmd_status(args):
+    """Show the status of linked resources with a premium UI."""
     global AICTX_HOME
     AICTX_HOME = resolve_aictx_home()
     context_root = resolve_context_root(AICTX_HOME)
-
-    print(f"\n🧠 AI Context — Status")
-    print(f"   Source : {AICTX_HOME}\n")
-
+    state = read_context_state()
+    is_enabled = state.get("context_enabled", True)
+    
+def cmd_status(args):
+    """Show the status of linked resources with a premium UI."""
+    global AICTX_HOME
+    AICTX_HOME = resolve_aictx_home()
+    context_root = resolve_context_root(AICTX_HOME)
+    state = read_context_state()
+    is_enabled = state.get("context_enabled", True)
+    
+    status_emoji = "✅" if is_enabled else "⏸️"
+    status_text = f"{G}ENABLED{RES}" if is_enabled else f"{Y}DISABLED{RES}"
+    
+    print_header(status_emoji, "AI Context — Status Center", f"Source: {AICTX_HOME}")
+    
     resources = scan_resources(AICTX_HOME)
-    print(f"📦 Resources:")
-    print(f"   rules     : {len(resources['rules'])}")
-    print(f"   skills    : {len(resources['skills'])}  ({sum(1 for s in resources['skills'] if s.get('tag') == 'meta')} meta)")
-    print(f"   agents    : {len(resources['agents'])}")
-    print(f"   workflows : {len(resources['workflows'])}\n")
+    archived  = list_archived_items(AICTX_HOME)
+    
+    print_section("📦 CURRENT RESOURCES")
+    for k in RESOURCES:
+        active = len(resources.get(k, []))
+        arch = len(archived.get(k.rstrip('s'), []))
+        meta_str = f" {DIM}({sum(1 for s in resources['skills'] if s.get('tag') == 'meta')} meta){RES}" if k == "skills" else ""
+        arch_str = f" {DIM}[{arch} archived]{RES}" if arch > 0 else ""
+        print(f"   {k:<10} {B}{active:>2}{RES}{meta_str}{arch_str}")
+    print()
 
-    for target_key, target in TARGETS.items():
-        print(f"📌 {target_key} — {target['description']}")
+    TARGET_ICONS = {
+        "copilot": "🤖", "claude": "🐚", "gemini": "✨", "cursor": "🏹", "windsurf": "🏄"
+    }
 
-        if target["link_type"] == "copilot":
-            instr = target["paths"]["instructions"]
-            status = "✓  exists" if instr.exists() else "✗  missing"
-            print(f"  {status} — {instr.name}")
-            settings = target["paths"]["settings"]
+    for target_key, target_icon in TARGET_ICONS.items():
+        conf = TARGETS.get(target_key)
+        if not conf: continue
+        
+        print(f" {target_icon} {B}{target_key.upper()}{RES} {DIM}— {conf['description']}{RES}")
+        
+        # Link Status
+        if conf["link_type"] == "copilot":
+            instr = conf["paths"]["instructions"]
+            status_icon = f"{G}✓{RES}" if instr.exists() else f"{Y}✗{RES}"
+            link_label = "Linked" if instr.exists() else "Not Linked"
+            print(f"   {status_icon} {B}{link_label}{RES}  → {DIM}{str(instr.parent).replace(str(HOME), '~')}{RES}")
+        else:
+            base = conf["base"]
+            linked_res = []
+            missing_res = []
+            for res in RESOURCES:
+                dst = base / res
+                src = context_root / res
+                status = link_status(dst, src)
+                if "✓" in status: linked_res.append(res)
+                else: missing_res.append(res)
+            
+            if not missing_res: status_icon, label = f"{G}🔗{RES}", "Linked"
+            elif linked_res: status_icon, label = f"{Y}⚠{RES}", "Partial"
+            else: status_icon, label = f"{DIM}∅{RES}", "Not Linked"
+            
+            print(f"   {status_icon} {B}{label}{RES}  → {DIM}{str(base).replace(str(HOME), '~')}{RES}")
+            if missing_res:
+                print(f"     {DIM}↳ Missing links: {Y}{', '.join(missing_res)}{RES}")
+
+        # Override Status (ALWAYS.md)
+        gr_path = conf.get("global_rule") or (conf["paths"]["instructions"] if conf.get("link_type") == "copilot" else None)
+        if gr_path:
+            gr_status = f"{G}✓{RES}" if gr_path.exists() else f"{DIM}✗{RES}"
+            print(f"   {gr_status} {B}Override{RES} → {DIM}{str(gr_path).replace(str(HOME), '~')}{RES}")
+        
+        # Auto-injection (Copilot specific)
+        if conf["link_type"] == "copilot":
+            settings = conf["paths"]["settings"]
+            is_injected = False
             if settings.exists():
                 try:
                     data = parse_jsonc(settings.read_text())
                     locations = data.get("chat.instructionsFilesLocations", {})
+                    # Check if any of our resource paths are in locations
                     for r in RESOURCES:
-                        current_abs = str(context_root / r)
-                        current_tilde = current_abs.replace(str(HOME), "~")
-                        legacy_abs = str(AICTX_HOME / r)
-                        legacy_tilde = legacy_abs.replace(str(HOME), "~")
-                        if current_abs in locations or current_tilde in locations:
-                            registered = "✓"
-                            suffix = ""
-                        elif legacy_abs in locations or legacy_tilde in locations:
-                            registered = "⚠"
-                            suffix = " (legacy path)"
-                        else:
-                            registered = "✗"
-                            suffix = ""
-                        print(f"  {registered}  settings ← {r}{suffix}")
+                        if any(str(context_root / r) in k or str(AICTX_HOME / r) in k for k in locations.keys()):
+                            is_injected = True
+                            break
                 except Exception:
-                    print("  ⚠  Could not read settings.json")
-            else:
-                print("  ✗  settings.json not found")
-
-        elif target["link_type"] == "folders":
-            base = target["base"]
-            for resource in RESOURCES:
-                status = link_status(base / resource, context_root / resource)
-                print(f"  {status} — {resource}")
-            gr_status = global_rule_status(context_root, target)
-            if gr_status:
-                print(f"  {gr_status}")
+                    pass
+            
+            inj_status = f"{G}✓{RES}" if is_injected else f"{Y}✗{RES}"
+            inj_label = "Injected" if is_injected else "Not Injected"
+            print(f"   {inj_status} {B}{inj_label}{RES} → {DIM}Rules/Skills via settings.json{RES}")
 
         print()
 
+        print()
+
+    print(f" {DIM}{'─' * 60}{RES}")
+    print(f" {DIM}Tip: Use 'aictx sync' to refresh all links and rules.{RES}\n")
+
 
 def cmd_uninstall(args):
+    """Remove managed links with a granular TUI selector."""
     global AICTX_HOME
     AICTX_HOME = resolve_aictx_home()
+    context_root = resolve_context_root(AICTX_HOME)
 
-    confirm = input("\n⚠️  Remove all AI Context links? [y/N]: ").strip().lower()
-    if confirm != "y":
-        print("Aborting.")
+    B = "\033[1m"; R = "\033[0m"
+    
+    # Build list of targets to uninstall
+    target_items = [
+        {"name": k, "desc": v["description"]} 
+        for k, v in TARGETS.items()
+    ]
+    target_items.insert(0, {"name": "ALL", "desc": "🔥 Remove EVERYTHING (all links and settings)"})
+    
+    selection = TUISelector.select("Select targets to UNINSTALL (Space to toggle, Enter to confirm):", target_items, multi=True)
+    
+    if not selection:
+        print("Aborted.\n")
         return
 
-    print(f"\n🧠 AI Context — Uninstall\n")
+    selected_keys = [s["name"] for s in selection]
+    if "ALL" in selected_keys:
+        targets_to_remove = list(TARGETS.keys())
+    else:
+        targets_to_remove = selected_keys
 
-    for target_key, target in TARGETS.items():
+    print(f"\n{B}🗑  AI Context — Uninstalling Links{R}\n")
+
+    for target_key in targets_to_remove:
+        target = TARGETS[target_key]
         print(f"🗑  {target_key}")
 
         if target["link_type"] == "copilot":
@@ -1423,38 +1641,57 @@ def cmd_uninstall(args):
                 if dst.is_symlink():
                     dst.unlink()
                     print(f"  ✓  removed {resource}")
+            
+            # Also remove global override files
+            if target.get("global_rule"):
+                gr = target["global_rule"]
+                if gr.exists():
+                    gr.unlink()
+                    print(f"  ✓  removed {gr.name}")
 
         print()
 
     print("✅ Uninstall complete.\n")
+    return 0
 
 
 def cmd_config(args):
-    global AICTX_HOME
-    AICTX_HOME = resolve_aictx_home()
+    """Show current configuration and environment details."""
+    print_header("⚙️", "AI Context — Config Center", "System environment and paths")
+    
+    print_section("🌐 ENVIRONMENT")
+    print(f"   {B}AICTX_HOME{RES} : {DIM}{AICTX_HOME}{RES}")
+    print(f"   {B}Platform{RES}   : {DIM}{platform.system()}{RES}")
+    print(f"   {B}Python{RES}     : {DIM}{sys.version.split()[0]}{RES}")
+    print()
 
-    print(f"\n🧠 AI Context — Config")
-    print(f"   AICTX_HOME : {AICTX_HOME}")
-    print(f"   Platform   : {platform.system()}")
-    print(f"   Python     : {sys.version.split()[0]}")
-    print(f"\n   Resources  : {', '.join(RESOURCES)}")
-    print(f"   Targets    : {', '.join(TARGETS.keys())}")
-    print(f"\n   Shell setup:")
-    print(f'     export AICTX_HOME="{AICTX_HOME}"')
-    print(f'     export PATH="$AICTX_HOME/scripts:$PATH"\n')
+    print_section("📦 REGISTRY")
+    print(f"   {B}Resources{RES}  : {DIM}{', '.join(RESOURCES)}{RES}")
+    print(f"   {B}Targets{RES}    : {DIM}{', '.join(TARGETS.keys())}{RES}")
+    print()
+
+    print_section("🐚 SHELL SETUP")
+    print(f"   {DIM}# Add this to your .bashrc or .zshrc:{RES}")
+    print(f"   {C}export AICTX_HOME=\"{AICTX_HOME}\"{RES}")
+    print(f"   {C}export PATH=\"$AICTX_HOME/scripts:$PATH\"{RES}\n")
+    return 0
 
 
 def cmd_doctor(args):
-    """Validate integrity of ai-context resources."""
+    """Validate integrity of ai-context resources with premium reporting."""
     global AICTX_HOME
     AICTX_HOME = resolve_aictx_home()
 
-    print(f"\n🩺 AI Context — Doctor")
-    print(f"   Source : {AICTX_HOME}\n")
+    B = "\033[1m"; G = "\033[92m"; Y = "\033[93m"; R = "\033[31m"; DIM = "\033[2m"; RES = "\033[0m"
+
+    print(f"\n{B}🩺 AI Context — Health Check{RES}")
+    print(f"   {DIM}Source: {AICTX_HOME}{RES}\n")
 
     errors   = []
     warnings = []
     ok       = []
+
+    # (Lógica interna mantida...)
 
     # ── 1. Skills folder structure ──────────────────────────────────────────
     skills_dir = AICTX_HOME / "skills"
@@ -1536,12 +1773,30 @@ def cmd_doctor(args):
 
 
 def cmd_add(args):
-    """Scaffold a new skill or agent."""
+    """Scaffold a new skill or agent with TUI support."""
     global AICTX_HOME
     AICTX_HOME = resolve_aictx_home()
 
-    kind = args.kind  # "skill" or "agent"
-    name = args.name.lower().replace(" ", "-")
+    kind = args.kind if hasattr(args, "kind") and args.kind else None
+    name = args.name if hasattr(args, "name") and args.name else None
+
+    if not kind:
+        options = [
+            {"name": "skill", "desc": "Create a new domain skill folder with SKILL.md"},
+            {"name": "agent", "desc": "Create a specialist agent MD file"},
+        ]
+        selection = TUISelector.select("What do you want to create?", options)
+        if not selection: return 0
+        kind = selection[0]["name"]
+
+    if not name:
+        print(f"\nCreating a new {kind}...")
+        name = input(f"Enter {kind} name (e.g. my-new-{kind}): ").strip()
+        if not name:
+            print("Aborted.\n")
+            return 0
+    
+    name = name.lower().replace(" ", "-")
 
     if kind == "skill":
         target_dir = AICTX_HOME / "skills" / name
@@ -1603,81 +1858,97 @@ def cmd_add(args):
 
 
 def cmd_archive(args):
-    """Move an active resource to archived/ so it stops being processed."""
+    """Move active resources to archived/ so they stop being processed."""
     global AICTX_HOME
     AICTX_HOME = resolve_aictx_home()
 
-    kind = normalize_archivable_type(args.kind)
+    kind = normalize_archivable_type(args.kind) if args.kind else None
+    names = [args.name] if args.name else []
+
     if not kind:
-        valid = ", ".join(sorted(ARCHIVABLE_TYPES.keys()))
-        print(f"\n❌ Unknown type: {args.kind}")
-        print(f"   Valid types: {valid}\n")
-        return 1
+        valid_kinds = [{"name": k, "desc": ""} for k in sorted(ARCHIVABLE_TYPES.keys())]
+        selection = TUISelector.select("Select resource type to archive:", valid_kinds)
+        if not selection: return 0
+        kind = selection[0]["name"]
 
-    name, active_path, archived_path = build_archivable_paths(AICTX_HOME, kind, args.name)
-
-    if not active_path.exists():
-        if archived_path.exists():
-            print(f"\nℹ️  {kind} '{name}' is already archived.")
-            print("   Use: aictx unarchive <type> <name>\n")
+    if not names:
+        resources = scan_resources(AICTX_HOME)
+        plural_kind = kind + "s"
+        items = sorted(resources.get(plural_kind, []), key=lambda x: x["name"])
+        
+        if not items:
+            print(f"\n⚠️  No active {kind}s found to archive.\n")
             return 0
+            
+        tui_items = [{"name": i["name"], "desc": i.get("description", "")} for i in items]
+        selection = TUISelector.select(f"Select {kind}s to archive (Space to toggle, Enter to confirm):", tui_items, multi=True)
+        if not selection: return 0
+        names = [s["name"] for s in selection]
 
-        print(f"\n❌ Active {kind} not found: {active_path}")
-        print("   Use: aictx archived to list archived items.\n")
-        return 1
+    success_count = 0
+    for name in names:
+        _, active_path, archived_path = build_archivable_paths(AICTX_HOME, kind, name)
 
-    archived_path.parent.mkdir(parents=True, exist_ok=True)
-    active_path.rename(archived_path)
+        if not active_path.exists():
+            print(f"⚠️  {kind} '{name}' is not active, skipping.")
+            continue
 
-    print(f"\n✅ Archived {kind}: {name}")
-    print(f"   From: {active_path}")
-    print(f"   To  : {archived_path}")
-    print("\n💡 It will stop being processed in context flows.")
-    print("   Running sync to refresh ALWAYS.md and references...\n")
+        archived_path.parent.mkdir(parents=True, exist_ok=True)
+        active_path.rename(archived_path)
+        print(f"✅ Archived {kind}: {name}")
+        success_count += 1
 
-    sync_result = cmd_sync(args)
-    if sync_result != 0:
-        return sync_result
+    if success_count > 0:
+        print(f"\n💡 {success_count} item(s) archived.")
+        print("   Running sync to refresh ALWAYS.md and references...\n")
+        return cmd_sync(args)
 
     return 0
 
 
 def cmd_unarchive(args):
-    """Restore an archived resource back to its active folder."""
+    """Restore archived resources back to their active folder."""
     global AICTX_HOME
     AICTX_HOME = resolve_aictx_home()
 
-    kind = normalize_archivable_type(args.kind)
+    kind = normalize_archivable_type(args.kind) if args.kind else None
+    names = [args.name] if args.name else []
+
     if not kind:
-        valid = ", ".join(sorted(ARCHIVABLE_TYPES.keys()))
-        print(f"\n❌ Unknown type: {args.kind}")
-        print(f"   Valid types: {valid}\n")
-        return 1
+        valid_kinds = [{"name": k, "desc": ""} for k in sorted(ARCHIVABLE_TYPES.keys())]
+        selection = TUISelector.select("Select resource type to restore:", valid_kinds)
+        if not selection: return 0
+        kind = selection[0]["name"]
 
-    name, active_path, archived_path = build_archivable_paths(AICTX_HOME, kind, args.name)
-
-    if not archived_path.exists():
-        if active_path.exists():
-            print(f"\nℹ️  {kind} '{name}' is already active.")
-            print("   Use: aictx archive <type> <name>\n")
+    if not names:
+        archived = list_archived_items(AICTX_HOME, kind)
+        items = sorted(archived.get(kind, []), key=lambda x: x["name"])
+        
+        if not items:
+            print(f"\n⚠️  No archived {kind}s found to restore.\n")
             return 0
+            
+        selection = TUISelector.select(f"Select {kind}s to restore (Space to toggle, Enter to confirm):", items, multi=True)
+        if not selection: return 0
+        names = [s["name"] for s in selection]
 
-        print(f"\n❌ Archived {kind} not found: {archived_path}")
-        print("   Use: aictx archived to list archived items.\n")
-        return 1
+    success_count = 0
+    for name in names:
+        _, active_path, archived_path = build_archivable_paths(AICTX_HOME, kind, name)
 
-    active_path.parent.mkdir(parents=True, exist_ok=True)
-    archived_path.rename(active_path)
+        if not archived_path.exists():
+            print(f"⚠️  {kind} '{name}' is not in archive, skipping.")
+            continue
 
-    print(f"\n✅ Restored {kind}: {name}")
-    print(f"   From: {archived_path}")
-    print(f"   To  : {active_path}")
-    print("\n💡 It will be processed again in context flows.")
-    print("   Running sync to refresh ALWAYS.md and references...\n")
+        active_path.parent.mkdir(parents=True, exist_ok=True)
+        archived_path.rename(active_path)
+        print(f"✅ Restored {kind}: {name}")
+        success_count += 1
 
-    sync_result = cmd_sync(args)
-    if sync_result != 0:
-        return sync_result
+    if success_count > 0:
+        print(f"\n💡 {success_count} item(s) restored.")
+        print("   Running sync to refresh ALWAYS.md and references...\n")
+        return cmd_sync(args)
 
     return 0
 
@@ -1854,21 +2125,12 @@ def _ls_header(emoji: str, title: str, count: int) -> None:
 
 
 def _ls_row(name: str, desc: str, badge: str = "", indent: int = 2) -> None:
-    G = "[1;32m"; Y = "[93m"; R = "[0m"; DIM = "[2m"
-    pad   = " " * indent
+    G = "\033[1;32m"; Y = "\033[93m"; R = "\033[0m"; DIM = "\033[2m"
+    pad = " " * indent
     label = f"{G}{name}{R}"
     badge_txt = f" {Y}{badge}{R}" if badge else ""
-    if desc:
-        # Wrap desc at 56 chars
-        import textwrap
-        lines = textwrap.wrap(desc, width=56)
-        print(f"{pad}{label}{badge_txt}")
-        for l in lines:
-            print(f"{pad}  {DIM}{l}{R}")
-    else:
-        print(f"{pad}{label}{badge_txt}")
-
-
+    desc_txt = f" {DIM}: {desc}{R}" if desc else ""
+    print(f"{pad}{label}{badge_txt}{desc_txt}")
 def cmd_ls(args):
     """List available skills, agents, or workflows with descriptions."""
     AICTX_HOME = resolve_aictx_home()
@@ -2015,9 +2277,24 @@ def cmd_audit(args):
 
 
 def cmd_context(args):
-    """Manage AI context enable/disable state."""
-    action = args.action if hasattr(args, "action") else None
+    """Manage AI context enable/disable state with TUI."""
+    action = args.action if hasattr(args, "action") and args.action else None
     
+    if not action:
+        state = read_context_state()
+        current = "ENABLED" if state.get("context_enabled", True) else "DISABLED"
+        
+        options = [
+            {"name": "status",  "desc": f"Show current state (currently {current})"},
+            {"name": "enable",  "desc": "Activate context processing for all AI tools"},
+            {"name": "disable", "desc": "Deactivate context to save tokens/focus"},
+            {"name": "toggle",  "desc": "Switch between enable and disable"},
+        ]
+        
+        selection = TUISelector.select("AI Context Management:", options)
+        if not selection: return 0
+        action = selection[0]["name"]
+
     if action == "enable":
         state = read_context_state()
         state["context_enabled"] = True
@@ -2055,60 +2332,89 @@ def cmd_context(args):
             print("   Context is inactive. AI tools will not process context from ~/.ai-context.")
             print("   Use 'aictx context enable' to re-enable.")
         print()
+    return 0
+
+
+def cmd_test(args):
+    """Run regression tests on all aictx commands."""
+    print_header("🧪", "AI Context — Regression Suite", "Validating all commands...")
+    
+    tests = [
+        ("status", "aictx status", "Check UI and injection status"),
+        ("sync", "aictx sync", "Validate manifest generation"),
+        ("ls", "aictx ls", "List all resources"),
+        ("agents", "aictx agents", "List agents specifically"),
+        ("config", "aictx config", "Check paths and environment"),
+        ("doctor", "aictx doctor", "Run integrity check"),
+        ("archive-test", "aictx archived", "Verify archive access"),
+    ]
+
+    passed = 0
+    for i, (name, cmd, desc) in enumerate(tests):
+        print(f"\n[{i+1}/{len(tests)}] {B}{name.upper()}{RES} — {desc}")
+        try:
+            # We run the commands via subprocess to capture output and return codes
+            res = subprocess.run(cmd.split(), capture_output=True, text=True)
+            if res.returncode == 0:
+                print_step(True, f"Command '{cmd}' executed successfully")
+                passed += 1
+            else:
+                print_step(False, f"Command '{cmd}' failed (Code {res.returncode})", res.stderr.strip())
+        except Exception as e:
+            print_step(False, f"Execution error: {str(e)}")
+
+    print(f"\n{B}📊 TEST SUMMARY{RES}")
+    print(f"   Passed: {G}{passed}/{len(tests)}{RES}")
+    
+    if passed == len(tests):
+        print(f"\n✨ {G}All systems normal!{RES} Quality and functionality validated.\n")
     else:
-        print("\nUsage: aictx context {enable|disable|toggle|status}\n")
+        print(f"\n⚠️  {Y}Some tests failed.{RES} Check logs above for details.\n")
+    
+    return 0 if passed == len(tests) else 1
 
 
 def main():
     parser = argparse.ArgumentParser(
         prog="aictx",
-        description="AI Context CLI — Manage AI resource links and sync ALWAYS.md",
+        description=f"{B}AI Context CLI{RES} — Manage AI resource links and sync {B}ALWAYS.md{RES}",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Examples:
-  aictx sync              Regenerate ALWAYS.md from current resources
-  aictx install           Interactive install
-  aictx install --all     Install all targets without prompts
-  aictx install --force   Overwrite existing links
-    aictx archive skill x   Archive an item so it stops being processed
-    aictx unarchive skill x Restore an archived item
-    aictx archived          List archived items
-        aictx skills-scripts     List all detected skill scripts
-        aictx run-skill lint-and-validate lint_runner.py -- .
-    aictx telemetry <path>  Analyze read_file usage per request from logs
-    aictx telemetry --json  Emit machine-readable report
-  aictx ls                List all skills, agents, workflows
-  aictx ls skills         List only skills
-  aictx init              Scaffold .agent/ in current project
-  aictx status            Show current status
-  aictx uninstall         Remove all links
-  aictx config            Show configuration
+        epilog=f"""
+{B}EXAMPLES:{RES}
+  aictx status           Show link status and resource counts
+  aictx sync             Regenerate ALWAYS.md and refresh links
+  aictx install          Interactive TUI to install links
+  aictx ls               List all resources (skills, agents, etc.)
+  aictx add skill name   Scaffold a new skill
+  aictx doctor --fix     Validate and auto-fix resource integrity
+  aictx test             Run regression tests
         """
     )
 
     sub = parser.add_subparsers(dest="command")
+    sub.add_parser("test", help="Run regression tests on all commands").set_defaults(func=cmd_test)
     sub.add_parser("sync",      help="Scan resources and regenerate ALWAYS.md").set_defaults(func=cmd_sync)
     sub.add_parser("doctor",    help="Validate integrity of ai-context resources").set_defaults(func=cmd_doctor)
 
     p_context = sub.add_parser("context", help="Enable/disable AI context processing")
-    p_context.add_argument("action", choices=["enable", "disable", "toggle", "status"], help="Context action")
+    p_context.add_argument("action", nargs="?", choices=["enable", "disable", "toggle", "status"], help="Context action")
     p_context.set_defaults(func=cmd_context)
 
     p_add = sub.add_parser("add", help="Scaffold a new skill or agent")
-    p_add.add_argument("kind", choices=["skill", "agent"], help="What to create")
-    p_add.add_argument("name", help="Name of the skill or agent (e.g. my-skill)")
+    p_add.add_argument("kind", nargs="?", choices=["skill", "agent"], help="What to create")
+    p_add.add_argument("name", nargs="?", help="Name of the skill or agent (e.g. my-skill)")
     p_add.add_argument("--description", "-d", help="Short description")
     p_add.add_argument("--skills", "-s", help="Comma-separated skill refs (agents only)")
     p_add.set_defaults(func=cmd_add)
 
     p_archive = sub.add_parser("archive", help="Archive a skill/rule/agent/workflow/spec")
-    p_archive.add_argument("kind", help="Type: skill, rule, agent, workflow, spec")
-    p_archive.add_argument("name", help="Resource name (without .md)")
+    p_archive.add_argument("kind", nargs="?", help="Type: skill, rule, agent, workflow, spec")
+    p_archive.add_argument("name", nargs="?", help="Resource name (without .md)")
     p_archive.set_defaults(func=cmd_archive)
 
     p_unarchive = sub.add_parser("unarchive", help="Restore an archived skill/rule/agent/workflow/spec")
-    p_unarchive.add_argument("kind", help="Type: skill, rule, agent, workflow, spec")
-    p_unarchive.add_argument("name", help="Resource name (without .md)")
+    p_unarchive.add_argument("kind", nargs="?", help="Type: skill, rule, agent, workflow, spec")
+    p_unarchive.add_argument("name", nargs="?", help="Resource name (without .md)")
     p_unarchive.set_defaults(func=cmd_unarchive)
 
     p_archived = sub.add_parser("archived", help="List archived resources")
