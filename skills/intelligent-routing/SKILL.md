@@ -67,6 +67,13 @@ If the user pasted long logs or tool output:
 
 - Load `token-compressor` and produce a compressed excerpt **with evidence preserved**.
 
+## Multi-Agent & Model Discipline
+
+- Default to a single agent whenever possible.
+- Use multiple agents only when subtasks are truly independent and results can be merged.
+- If model selection is available, prefer the cheapest capable model for search/formatting/classification and reserve expensive models for deep, critical reasoning.
+- Treat each additional agent as added bootstrap + context overhead.
+
 ## Evidence (Before Claiming Done)
 
 Before finalizing implementation output:

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-05-07T22:44:43",
+  "generatedAt": "2026-05-07T22:59:03",
   "contextEnabled": true,
   "contextRoot": "/home/jonnathan/.ai-context/.aictx-runtime/current",
   "rules": [
@@ -245,7 +245,7 @@
       "version": "1.0.0",
       "tags": "",
       "allowed_tools": "",
-      "size_kb": 6.9,
+      "size_kb": 7.3,
       "tags_list": []
     },
     {
@@ -564,10 +564,14 @@
       "tag": "",
       "description": "Token-efficient request processing without reducing task quality. Use this skill whenever the user request is long, multi-part, repetitive, or likely to consume high context window. Also use when optimizing prompts, reducing token costs, preserving output fidelity, or handling large conversational history. Trigger even if the user does not explicitly mention tokens when context compression would improve efficiency.",
       "version": "1.0.0",
-      "tags": "",
+      "tags": "token, context, workflow",
       "allowed_tools": "Read, Glob, Grep, Bash",
-      "size_kb": 4.5,
-      "tags_list": []
+      "size_kb": 6.9,
+      "tags_list": [
+        "token",
+        "context",
+        "workflow"
+      ]
     },
     {
       "name": "web-design-guidelines",
@@ -643,6 +647,13 @@
     }
   ],
   "workflows": [
+    {
+      "name": "compact",
+      "description": "Context compaction command. Produces a stable, high-signal summary and compresses bulky logs to reduce context window pressure.",
+      "tags": "",
+      "size_kb": 1.5,
+      "tags_list": []
+    },
     {
       "name": "debug",
       "description": "Debugging command. Activates DEBUG mode for systematic problem investigation.",

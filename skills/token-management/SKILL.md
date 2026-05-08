@@ -3,6 +3,7 @@ version: 1.0.0
 name: token-management
 description: Token-efficient request processing without reducing task quality. Use this skill whenever the user request is long, multi-part, repetitive, or likely to consume high context window. Also use when optimizing prompts, reducing token costs, preserving output fidelity, or handling large conversational history. Trigger even if the user does not explicitly mention tokens when context compression would improve efficiency.
 allowed-tools: Read, Glob, Grep, Bash
+tags: token, context, workflow
 ---
 
 # Token Management
@@ -19,6 +20,57 @@ Produce the same final work quality with or without this skill. The difference m
 2. Compress structure, not meaning. Reduce verbosity and duplication, not substance.
 3. Prefer deterministic extraction. Convert long requests into concise, traceable task blocks.
 4. Avoid repeated reasoning loops. Reuse stable summaries instead of re-expanding prior context.
+
+## Key Reality: Context Cost Is Multiplicative
+
+In many chat-based LLM tools, each new user message is processed against the *current active context window* (system + rules + skills + files + history). This makes cost and latency feel non-linear:
+
+- One extra message can trigger a re-read of the full context window.
+- Large context also reduces quality ("lost in the middle"): models tend to overweight the start and end of long contexts and under-attend the middle.
+
+Practical implication: keep the execution kernel short, stable, and near the top of the conversation.
+
+## Practical Tactics (High ROI)
+
+Apply these tactics before (and during) execution:
+
+1. **Start fresh for unrelated tasks**
+	- If the next task is unrelated, prefer a new thread/session instead of dragging history forward.
+
+2. **Reduce bootstrap overhead**
+	- Keep always-on docs minimal.
+	- Prefer on-demand skills/workflows over putting everything into a single always-loaded file.
+
+3. **Batch requests to avoid micro-turns**
+	- Favor one well-scoped message over many small follow-ups.
+	- If needed, use `intent-expander` or `spec-normalizer` to consolidate requirements.
+
+4. **Plan first, then implement**
+	- Use `context-validator` (harness) + `spec-enforcer` (spec gate) to prevent expensive rework.
+
+5. **Be precise with file targets**
+	- Point to exact files/symbols when possible.
+	- Prefer workspace-map guided navigation over broad repo-wide searching.
+
+6. **Paste only the minimum context**
+	- Avoid full PDFs/threads when only a section matters.
+	- Prefer excerpts + links/pointers.
+
+7. **Compact early (before you hit limits)**
+	- When context grows large (rule of thumb: ~60%+ full or multiple failed iterations), create a stable summary.
+	- Use `token-compressor` for logs/tool output before reasoning.
+
+8. **Avoid multi-agent unless it truly parallelizes work**
+	- Each extra agent/session repeats bootstrap overhead.
+	- Only parallelize independent subtasks that can be merged cleanly.
+
+9. **Use the cheapest capable model (when selectable)**
+	- Reserve expensive models for critical, multi-step reasoning.
+	- Use cheaper models for search, classification, formatting, and simple edits.
+
+10. **Turn learnings into on-demand guidance**
+	- When a pattern repeats, encode it into a skill/workflow.
+	- Keep always-on rules as an index/constitution, not a dumping ground.
 
 ## Token Optimization Workflow
 

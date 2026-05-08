@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-05-07T22:44:43",
+  "generatedAt": "2026-05-07T22:59:03",
   "contextEnabled": true,
   "contextRoot": "/home/jonnathan/.ai-context/.aictx-runtime/current",
   "units": "KB",
@@ -10,16 +10,16 @@
     "block": 80
   },
   "baseline": {
-    "rules_kb": 12.6,
-    "meta_skills_kb": 12.4,
-    "total_kb": 25.0,
+    "rules_kb": 12.7,
+    "meta_skills_kb": 12.8,
+    "total_kb": 25.5,
     "meta_skills": [
       "behavioral-modes",
       "intelligent-routing"
     ]
   },
   "rules": {
-    "ALWAYS": 2.9,
+    "ALWAYS": 3.0,
     "agent-protocol": 1.7,
     "checklist-protocol": 0.9,
     "code-standards": 1.7,
@@ -41,7 +41,7 @@
     "expert-educator": 3.2,
     "frontend-design": 12.2,
     "idea-structurer": 4.2,
-    "intelligent-routing": 6.9,
+    "intelligent-routing": 7.3,
     "intent-expander": 1.2,
     "memory-curator": 1.0,
     "mobile-design": 15.2,
@@ -69,7 +69,7 @@
     "tdd-workflow": 2.9,
     "testing-patterns": 5.8,
     "token-compressor": 1.4,
-    "token-management": 4.5,
+    "token-management": 6.9,
     "web-design-guidelines": 1.7,
     "webapp-testing": 4.0,
     "workspace-mapper": 1.7
@@ -84,6 +84,7 @@
     "test-engineer": 3.3
   },
   "workflows": {
+    "compact": 1.5,
     "debug": 1.7,
     "harness": 1.1
   }
