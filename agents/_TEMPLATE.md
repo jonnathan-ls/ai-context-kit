@@ -3,7 +3,7 @@ name: agent-name
 description: One-line description. State role, domain, and trigger keywords. Example: "Expert in X. Use for Y, Z. Triggers on keyword1, keyword2, keyword3."
 tools: Read, Grep, Glob, Bash, Edit, Write
 model: inherit
-skills: clean-code, relevant-skill-1, relevant-skill-2
+skills: clean-code
 ---
 
 # Agent Display Name

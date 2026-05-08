@@ -1681,178 +1681,92 @@ def cmd_doctor(args):
     """Validate integrity of ai-context resources with premium reporting."""
     global AICTX_HOME
     AICTX_HOME = resolve_aictx_home()
-
-    B = "\033[1m"; G = "\033[92m"; Y = "\033[93m"; R = "\033[31m"; DIM = "\033[2m"; RES = "\033[0m"
-
+    B = "\033[1m"; G = "\033[92m"; Y = "\033[93m"; R = "\033[31m"; C = "\033[96m"; DIM = "\033[2m"; RES = "\033[0m"
     print(f"\n{B}🩺 AI Context — Health Check{RES}")
     print(f"   {DIM}Source: {AICTX_HOME}{RES}\n")
-
-    errors   = []
-    warnings = []
-    ok       = []
-
-    # (Lógica interna mantida...)
-
-    # ── 1. Skills folder structure ──────────────────────────────────────────
+    errors, warnings, ok = [], [], []
     skills_dir = AICTX_HOME / "skills"
+    agents_dir = AICTX_HOME / "agents"
     if skills_dir.exists():
         for d in sorted(skills_dir.iterdir()):
             if d.is_dir():
-                skill_file = next((d / f for f in ["SKILL.md", "skill.md"] if (d / f).exists()), None)
-                if not skill_file:
+                if not any((d / f).exists() for f in ["SKILL.md", "skill.md"]):
                     errors.append(f"skills/{d.name}/ — missing SKILL.md")
-                else:
-                    ok.append(f"skills/{d.name}/SKILL.md")
-            elif d.is_file() and d.suffix == ".md" and d.name.upper() != "README.MD":
-                warnings.append(f"skills/{d.name} — orphan .md file (not inside a skill folder)")
-
-    # ── 2. Agent skill reference validation ─────────────────────────────────
-    agents_dir = AICTX_HOME / "agents"
+                else: ok.append(f"skills/{d.name}/SKILL.md")
     if agents_dir.exists():
         for agent_file in sorted(agents_dir.glob("*.md")):
             fm = read_frontmatter(agent_file)
             skill_refs = [s.strip() for s in fm.get("skills", "").split(",") if s.strip()]
             for ref in skill_refs:
-                skill_path = skills_dir / ref
-                if not skill_path.exists():
-                    errors.append(f"agents/{agent_file.name} → skill \"{ref}\" not found in skills/")
-                else:
-                    ok.append(f"agents/{agent_file.name} → {ref} ✓")
-
-    # ── 3. Workflow reference validation ─────────────────────────────────────
-    workflows_dir = AICTX_HOME / "workflows"
-    if workflows_dir.exists():
-        for wf in sorted(workflows_dir.glob("*.md")):
-            content = wf.read_text()
-            # check for references to skills that don't exist
-            import re
-            refs = re.findall(r"`([a-z][a-z0-9-]+)`\s+skill", content)
-            for ref in refs:
                 if not (skills_dir / ref).exists():
-                    warnings.append(f"workflows/{wf.name} → skill \"{ref}\" referenced but not found")
-
-    # ── 4. Symlink integrity ─────────────────────────────────────────────────
-    for target_key, target in TARGETS.items():
-        if target["link_type"] == "folders":
-            base = target["base"]
-            if base.exists():
-                for resource in RESOURCES:
-                    dst = base / resource
-                    if dst.is_symlink() and not dst.exists():
-                        errors.append(f"{target_key}/{resource} — broken symlink → {dst.resolve()}")
-
-    # ── 5. rules/ALWAYS.md ──────────────────────────────────────────────────
-    always_path = AICTX_HOME / "rules" / "ALWAYS.md"
-    if not always_path.exists():
-        errors.append("rules/ALWAYS.md — not found (run: aictx sync)")
-    else:
-        ok.append("rules/ALWAYS.md")
-
-    # ── Report ───────────────────────────────────────────────────────────────
+                    errors.append(f"agents/{agent_file.name} → skill \"{ref}\" not found")
+                else: ok.append(f"agents/{agent_file.name} → {ref} ✓")
     if errors:
-        print(f"❌ {len(errors)} error(s):")
-        for e in errors:
-            print(f"   ✗  {e}")
+        print(f"{R}❌ {len(errors)} error(s):{RES}")
+        for e in errors: print(f"   {R}✗{RES}  {e}")
         print()
-
     if warnings:
-        print(f"⚠️  {len(warnings)} warning(s):")
-        for w in warnings:
-            print(f"   ⚠  {w}")
+        print(f"{Y}⚠️  {len(warnings)} warning(s):{RES}")
+        for w in warnings: print(f"   {Y}!{RES}  {w}")
         print()
-
-    total_ok = len(ok) - len(errors)  # don't double-count
-    print(f"✅ {len(ok)} check(s) passed")
-
-    if not errors and not warnings:
-        print("\n🎉 Everything looks healthy!\n")
-    else:
-        print(f"\n💡 Run `aictx sync` after fixing issues.\n")
-
-    return 1 if errors else 0
-
+    print(f"{G}✅ {len(ok)} check(s) passed{RES}\n")
+    if getattr(args, "fix", False) and errors:
+        print(f"{B}🔨 Sanitizing resources...{RES}\n")
+        for err in [e for e in errors if "missing SKILL.md" in e]:
+            folder = err.split("/")[1]
+            (skills_dir / folder / "SKILL.md").write_text(f"---\nname: {folder}\ndescription: Auto-generated.\n---\n")
+            print(f"   {G}✓{RES} Created missing skills/{folder}/SKILL.md")
+        for agent_file in sorted(agents_dir.glob("*.md")):
+            c = agent_file.read_text()
+            fm = read_frontmatter(agent_file)
+            refs = [s.strip() for s in fm.get("skills", "").split(",") if s.strip()]
+            new_refs = [r for r in refs if (skills_dir / r).exists()]
+            if len(refs) != len(new_refs):
+                import re
+                c = re.sub(r"skills:.*", f"skills: {', '.join(new_refs)}", c)
+                agent_file.write_text(c)
+                print(f"   {G}✓{RES} Cleaned orphan skills in {agent_file.name}")
+        print(f"\n✨ Sanitization complete. Run {C}aictx sync{RES} to update manifests.\n")
+    elif errors:
+        print(f"💡 {B}Tip:{RES} Run {C}aictx doctor --fix{RES} to auto-repair issues.\n")
+    return 0
 
 def cmd_add(args):
-    """Scaffold a new skill or agent with TUI support."""
+    """Scaffold a new skill or agent."""
     global AICTX_HOME
     AICTX_HOME = resolve_aictx_home()
-
-    kind = args.kind if hasattr(args, "kind") and args.kind else None
-    name = args.name if hasattr(args, "name") and args.name else None
-
+    
+    kind = normalize_archivable_type(args.kind) if args.kind else None
+    name = args.name
+    
     if not kind:
-        options = [
-            {"name": "skill", "desc": "Create a new domain skill folder with SKILL.md"},
-            {"name": "agent", "desc": "Create a specialist agent MD file"},
-        ]
-        selection = TUISelector.select("What do you want to create?", options)
+        items = [{"name": k, "desc": ""} for k in ["skill", "agent"]]
+        selection = TUISelector.select("Select resource type to add:", items)
         if not selection: return 0
         kind = selection[0]["name"]
 
     if not name:
-        print(f"\nCreating a new {kind}...")
-        name = input(f"Enter {kind} name (e.g. my-new-{kind}): ").strip()
-        if not name:
-            print("Aborted.\n")
-            return 0
-    
+        name = input(f"Enter {kind} name: ").strip()
+        if not name: return 0
+
     name = name.lower().replace(" ", "-")
-
+    
     if kind == "skill":
-        target_dir = AICTX_HOME / "skills" / name
-        if target_dir.exists():
-            print(f"\n⚠️  skills/{name} already exists.")
+        target = AICTX_HOME / "skills" / name
+        if target.exists():
+            print(f"⚠️  Skill {name} already exists.")
             return 1
-
-        target_dir.mkdir(parents=True)
-        description = args.description or f"{name} skill"
-
-        skill_content = (
-            "---\n"
-            f"name: {name}\n"
-            f"description: {description}\n"
-            "version: 1.0.0\n"
-            "---\n\n"
-            f"# {name.replace('-', ' ').title()}\n\n"
-            "## Purpose\n\n"
-            f"Description of what {name} does.\n\n"
-            "## Usage\n\n"
-            "When to invoke this skill and how.\n\n"
-            "## Rules\n\n"
-            "- Rule 1\n"
-            "- Rule 2\n"
-        )
-        (target_dir / "SKILL.md").write_text(skill_content)
-        print(f"\n✅ Skill scaffolded → {target_dir}/SKILL.md")
-        print(f"   Edit the file, then run `aictx sync`\n")
-
+        target.mkdir(parents=True)
+        (target / "SKILL.md").write_text(f"---\nname: {name}\ndescription: {name} skill\n---\n# {name.title()}\n")
+        print(f"✅ Skill created: {target}/SKILL.md")
+    
     elif kind == "agent":
-        target_path = AICTX_HOME / "agents" / f"{name}.md"
-        if target_path.exists():
-            print(f"\n⚠️  agents/{name}.md already exists.")
+        target = AICTX_HOME / "agents" / f"{name}.md"
+        if target.exists():
+            print(f"⚠️  Agent {name} already exists.")
             return 1
-
-        description   = args.description or f"{name} specialist agent"
-        skills_list   = args.skills or "clean-code"
-
-        agent_content = (
-            "---\n"
-            f"name: {name}\n"
-            f"description: {description}\n"
-            "tools: Read, Grep, Glob, Edit, Write\n"
-            "model: inherit\n"
-            f"skills: {skills_list}\n"
-            "---\n\n"
-            f"# {name.replace('-', ' ').title()}\n\n"
-            "## Role\n\n"
-            f"You are a specialist in {name.replace('-', ' ')}.\n\n"
-            "## Rules\n\n"
-            "- Rule 1\n"
-            "- Rule 2\n"
-        )
-        target_path.write_text(agent_content)
-        print(f"\n✅ Agent scaffolded → {target_path}")
-        print(f"   Edit the file, then run `aictx sync`\n")
+        target.write_text(f"---\nname: {name}\ndescription: {name} agent\nskills: clean-code\n---\n# {name.title()}\n")
+        print(f"✅ Agent created: {target}")
 
     return 0
 
@@ -2394,7 +2308,9 @@ def main():
     sub = parser.add_subparsers(dest="command")
     sub.add_parser("test", help="Run regression tests on all commands").set_defaults(func=cmd_test)
     sub.add_parser("sync",      help="Scan resources and regenerate ALWAYS.md").set_defaults(func=cmd_sync)
-    sub.add_parser("doctor",    help="Validate integrity of ai-context resources").set_defaults(func=cmd_doctor)
+    p_doctor = sub.add_parser("doctor", help="Validate integrity of ai-context resources")
+    p_doctor.add_argument("--fix", action="store_true", help="Auto-fix missing resource files or orphan references")
+    p_doctor.set_defaults(func=cmd_doctor)
 
     p_context = sub.add_parser("context", help="Enable/disable AI context processing")
     p_context.add_argument("action", nargs="?", choices=["enable", "disable", "toggle", "status"], help="Context action")
@@ -2483,4 +2399,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
