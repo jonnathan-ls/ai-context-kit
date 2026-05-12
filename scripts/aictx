@@ -109,10 +109,6 @@ TARGETS = {
     "copilot": {
         "description": "VS Code Copilot (User Profile instructions + settings)",
         "link_type": "copilot",
-        "paths": {
-            "instructions": HOME / ".config/Code/User/prompts/ai-context.instructions.md",
-            "settings":     HOME / ".config/Code/User/settings.json",
-        }
     },
     "claude": {
         "description": "Claude Code (Global context in ~/.claude)",
@@ -147,6 +143,68 @@ TARGETS = {
 
 def resolve_aictx_home() -> Path:
     return Path(__file__).resolve().parent.parent
+
+
+_VSCODE_USER_DIR_CACHE: Optional[Path] = None
+
+
+def _vscode_user_dir_candidates() -> List[Path]:
+    home = Path.home()
+    system = platform.system().lower()
+    roots: List[Path] = []
+
+    appdata = os.environ.get("APPDATA")
+    if system == "windows":
+        if appdata:
+            roots.append(Path(appdata))
+        roots.append(home / "AppData" / "Roaming")
+    elif system == "darwin":
+        roots.append(home / "Library" / "Application Support")
+    else:
+        roots.append(home / ".config")
+
+    candidates: List[Path] = []
+    for root in roots:
+        for app_name in ("Code", "Code - Insiders", "VSCodium", "Code - OSS"):
+            candidate = root / app_name / "User"
+            if candidate not in candidates:
+                candidates.append(candidate)
+
+    return candidates
+
+
+def resolve_vscode_user_dir(warn: bool = True) -> Optional[Path]:
+    global _VSCODE_USER_DIR_CACHE
+
+    if _VSCODE_USER_DIR_CACHE is not None:
+        return _VSCODE_USER_DIR_CACHE
+
+    candidates = _vscode_user_dir_candidates()
+    for candidate in candidates:
+        if candidate.exists():
+            _VSCODE_USER_DIR_CACHE = candidate
+            return candidate
+
+    if candidates:
+        _VSCODE_USER_DIR_CACHE = candidates[0]
+        if warn:
+            print(f"  ⚠  Could not find an existing VS Code User profile; using {str(_VSCODE_USER_DIR_CACHE).replace(str(HOME), '~')}")
+        return _VSCODE_USER_DIR_CACHE
+
+    if warn:
+        print("  ⚠  Could not determine the VS Code User profile path; skipping Copilot override")
+    return None
+
+
+def resolve_copilot_paths(warn: bool = True) -> Optional[Dict[str, Path]]:
+    vscode_user_dir = resolve_vscode_user_dir(warn=warn)
+    if not vscode_user_dir:
+        return None
+
+    return {
+        "instructions": vscode_user_dir / "prompts" / "ai-context.instructions.md",
+        "settings": vscode_user_dir / "settings.json",
+    }
 
 
 def read_context_state() -> dict:
@@ -373,9 +431,11 @@ def migrate_folder_links_to_context_root(context_root: Path) -> None:
 
 
 def maybe_update_vscode_settings_paths(context_root: Path) -> None:
-    settings_path = HOME / ".config/Code/User/settings.json"
-    if not settings_path.exists():
+    copilot_paths = resolve_copilot_paths(warn=True)
+    if not copilot_paths:
         return
+
+    settings_path = copilot_paths["settings"]
 
     try:
         data = parse_jsonc(settings_path.read_text())
@@ -1127,7 +1187,11 @@ def _find_default_log_target() -> Optional[Path]:
         if p.exists():
             return p
 
-    logs_root = HOME / ".config/Code/User/workspaceStorage"
+    vscode_user = resolve_vscode_user_dir(warn=False)
+    if not vscode_user:
+        return None
+    
+    logs_root = vscode_user / "workspaceStorage"
     if not logs_root.exists():
         return None
 
@@ -1491,9 +1555,11 @@ def cmd_sync(args):
     print_header("🔗", "PROPAGATION")
     
     # 1. Copilot Special Case
-    copilot_instr = TARGETS["copilot"]["paths"]["instructions"]
-    if safe_propagate(copilot_instr, content, "Copilot Instructions"):
-        update_vscode_settings_paths(TARGETS["copilot"]["paths"]["settings"], RESOURCES, context_root)
+    copilot_paths = resolve_copilot_paths(warn=True)
+    if copilot_paths:
+        copilot_instr = copilot_paths["instructions"]
+        if safe_propagate(copilot_instr, content, "Copilot Instructions"):
+            update_vscode_settings_paths(copilot_paths["settings"], RESOURCES, context_root)
     
     # 2. General Tool Overrides (Claude, Gemini, Cursor, Windsurf)
     for tk, target in TARGETS.items():
@@ -1514,26 +1580,61 @@ def cmd_install(args):
     
     B = "\033[1m"; R = "\033[0m"
 
-    selected_targets = []
-    selected_resources = []
+    def _parse_csv(value: Optional[str]) -> List[str]:
+        if not value:
+            return []
+        return [p.strip() for p in value.split(",") if p.strip()]
+
+    selected_targets: List[str] = []
+    selected_resources: List[str] = []
+
+    headless_targets = _parse_csv(getattr(args, "targets", None))
+    headless_resources = _parse_csv(getattr(args, "resources", None))
 
     if args.all:
         selected_targets = list(TARGETS.keys())
         selected_resources = RESOURCES
+    elif headless_targets:
+        if any(t.lower() == "all" for t in headless_targets):
+            selected_targets = list(TARGETS.keys())
+        else:
+            selected_targets = headless_targets
+
+        selected_resources = headless_resources or RESOURCES
+
+        invalid_targets = [t for t in selected_targets if t not in TARGETS]
+        if invalid_targets:
+            print(f"\n❌ Unknown target(s): {', '.join(invalid_targets)}")
+            print(f"   Valid targets: {', '.join(TARGETS.keys())}\n")
+            return 1
+
+        invalid_resources = [r for r in selected_resources if r not in RESOURCES]
+        if invalid_resources:
+            print(f"\n❌ Unknown resource(s): {', '.join(invalid_resources)}")
+            print(f"   Valid resources: {', '.join(RESOURCES)}\n")
+            return 1
+    elif headless_resources:
+        print("\n❌ --resources requires --targets (or use --all).\n")
+        return 1
     else:
-        # Target Selection
+        # Interactive mode (default)
         target_items = [
-            {"name": k, "desc": v["description"]} 
+            {"name": k, "desc": v["description"]}
             for k, v in TARGETS.items()
         ]
-        selection = TUISelector.select("Select installation targets (Space to toggle, Enter to confirm):", target_items, multi=True)
-        if not selection: return 0
+        selection = TUISelector.select(
+            "Select installation targets (Space to toggle, Enter to confirm):",
+            target_items,
+            multi=True,
+        )
+        if not selection:
+            return 0
         selected_targets = [s["name"] for s in selection]
 
-        # Resource Selection
         res_items = [{"name": r, "desc": f"Link all active {r}"} for r in RESOURCES]
         selection = TUISelector.select("Select resources to link:", res_items, multi=True)
-        if not selection: return 0
+        if not selection:
+            return 0
         selected_resources = [s["name"] for s in selection]
 
     if not selected_targets or not selected_resources:
@@ -1547,7 +1648,11 @@ def cmd_install(args):
         print(f" {B}🔗 {target_key}{RES} {DIM}— {target['description']}{RES}")
 
         if target["link_type"] == "copilot":
-            instr_path = target["paths"]["instructions"]
+            copilot_paths = resolve_copilot_paths(warn=True)
+            if not copilot_paths:
+                print(f"  ⚠  Skipping Copilot installation (could not resolve VS Code User path)")
+                continue
+            instr_path = copilot_paths["instructions"]
             instr_path.parent.mkdir(parents=True, exist_ok=True)
             always_path = context_root / "rules" / "ALWAYS.md"
             instr_path.write_text(
@@ -1555,7 +1660,7 @@ def cmd_install(args):
                 else "# ALWAYS.md not found — run: aictx sync\n"
             )
             print(f"  ✓  {instr_path.name} ← written from ALWAYS.md")
-            update_vscode_settings_paths(target["paths"]["settings"], selected_resources, context_root)
+            update_vscode_settings_paths(copilot_paths["settings"], selected_resources, context_root)
 
         elif target["link_type"] == "folders":
             base = target["base"]
@@ -1624,7 +1729,11 @@ def cmd_status(args):
         
         # Link Status
         if conf["link_type"] == "copilot":
-            instr = conf["paths"]["instructions"]
+            copilot_paths = resolve_copilot_paths(warn=False)
+            instr = copilot_paths["instructions"] if copilot_paths else None
+            if not instr:
+                print(f"   {Y}⚠{RES} {B}Copilot profile unavailable{RES}  → {DIM}Could not resolve VS Code User path{RES}")
+                continue
             status_icon = f"{G}✓{RES}" if instr.exists() else f"{Y}✗{RES}"
             link_label = "Linked" if instr.exists() else "Not Linked"
             print(f"   {status_icon} {B}{link_label}{RES}  → {DIM}{str(instr.parent).replace(str(HOME), '~')}{RES}")
@@ -1648,16 +1757,21 @@ def cmd_status(args):
                 print(f"     {DIM}↳ Missing links: {Y}{', '.join(missing_res)}{RES}")
 
         # Override Status (ALWAYS.md)
-        gr_path = conf.get("global_rule") or (conf["paths"]["instructions"] if conf.get("link_type") == "copilot" else None)
+        gr_path = conf.get("global_rule")
+        if conf.get("link_type") == "copilot":
+            copilot_paths = resolve_copilot_paths(warn=False)
+            if copilot_paths:
+                gr_path = copilot_paths["instructions"]
         if gr_path:
             gr_status = f"{G}✓{RES}" if gr_path.exists() else f"{DIM}✗{RES}"
             print(f"   {gr_status} {B}Override{RES} → {DIM}{str(gr_path).replace(str(HOME), '~')}{RES}")
         
         # Auto-injection (Copilot specific)
         if conf["link_type"] == "copilot":
-            settings = conf["paths"]["settings"]
+            copilot_paths = resolve_copilot_paths(warn=False)
+            settings = copilot_paths["settings"] if copilot_paths else None
             is_injected = False
-            if settings.exists():
+            if settings and settings.exists():
                 try:
                     data = parse_jsonc(settings.read_text())
                     locations = data.get("chat.instructionsFilesLocations", {})
@@ -1688,25 +1802,52 @@ def cmd_uninstall(args):
     context_root = resolve_context_root(AICTX_HOME)
 
     B = "\033[1m"; R = "\033[0m"
-    
-    # Build list of targets to uninstall
-    target_items = [
-        {"name": k, "desc": v["description"]} 
-        for k, v in TARGETS.items()
-    ]
-    target_items.insert(0, {"name": "ALL", "desc": "🔥 Remove EVERYTHING (all links and settings)"})
-    
-    selection = TUISelector.select("Select targets to UNINSTALL (Space to toggle, Enter to confirm):", target_items, multi=True)
-    
-    if not selection:
-        print("Aborted.\n")
-        return
 
-    selected_keys = [s["name"] for s in selection]
-    if "ALL" in selected_keys:
-        targets_to_remove = list(TARGETS.keys())
+    def _parse_csv(value: Optional[str]) -> List[str]:
+        if not value:
+            return []
+        return [p.strip() for p in value.split(",") if p.strip()]
+
+    headless_targets = _parse_csv(getattr(args, "targets", None))
+
+    if headless_targets:
+        if not getattr(args, "yes", False):
+            print("\n❌ Refusing to uninstall without confirmation.")
+            print("   Re-run with: aictx uninstall --targets <...> --yes\n")
+            return 1
+
+        if any(t.lower() == "all" for t in headless_targets):
+            targets_to_remove = list(TARGETS.keys())
+        else:
+            invalid_targets = [t for t in headless_targets if t not in TARGETS]
+            if invalid_targets:
+                print(f"\n❌ Unknown target(s): {', '.join(invalid_targets)}")
+                print(f"   Valid targets: {', '.join(TARGETS.keys())}\n")
+                return 1
+            targets_to_remove = headless_targets
     else:
-        targets_to_remove = selected_keys
+        # Build list of targets to uninstall
+        target_items = [
+            {"name": k, "desc": v["description"]}
+            for k, v in TARGETS.items()
+        ]
+        target_items.insert(0, {"name": "ALL", "desc": "🔥 Remove EVERYTHING (all links and settings)"})
+
+        selection = TUISelector.select(
+            "Select targets to UNINSTALL (Space to toggle, Enter to confirm):",
+            target_items,
+            multi=True,
+        )
+
+        if not selection:
+            print("Aborted.\n")
+            return 0
+
+        selected_keys = [s["name"] for s in selection]
+        if "ALL" in selected_keys:
+            targets_to_remove = list(TARGETS.keys())
+        else:
+            targets_to_remove = selected_keys
 
     print(f"\n{B}🗑  AI Context — Uninstalling Links{R}\n")
 
@@ -1715,20 +1856,22 @@ def cmd_uninstall(args):
         print(f"🗑  {target_key}")
 
         if target["link_type"] == "copilot":
-            instr = target["paths"]["instructions"]
-            if instr.exists():
-                instr.unlink()
-                print(f"  ✓  removed {instr.name}")
-            settings = target["paths"]["settings"]
-            if settings.exists():
-                try:
-                    data = parse_jsonc(settings.read_text())
-                    if "chat.instructionsFilesLocations" in data:
-                        del data["chat.instructionsFilesLocations"]
-                        settings.write_text(json.dumps(data, indent=2))
-                        print("  ✓  removed chat.instructionsFilesLocations from settings.json")
-                except Exception:
-                    print("  ⚠  Could not update settings.json")
+            copilot_paths = resolve_copilot_paths(warn=False)
+            if copilot_paths:
+                instr = copilot_paths["instructions"]
+                if instr.exists():
+                    instr.unlink()
+                    print(f"  ✓  removed {instr.name}")
+                settings = copilot_paths["settings"]
+                if settings.exists():
+                    try:
+                        data = parse_jsonc(settings.read_text())
+                        if "chat.instructionsFilesLocations" in data:
+                            del data["chat.instructionsFilesLocations"]
+                            settings.write_text(json.dumps(data, indent=2))
+                            print("  ✓  removed chat.instructionsFilesLocations from settings.json")
+                    except Exception:
+                        print("  ⚠  Could not update settings.json")
 
         elif target["link_type"] == "folders":
             base = target["base"]
@@ -2486,7 +2629,10 @@ def main():
     p_run_skill.set_defaults(func=cmd_run_skill)
 
     sub.add_parser("status",    help="Show link status").set_defaults(func=cmd_status)
-    sub.add_parser("uninstall", help="Remove all managed links").set_defaults(func=cmd_uninstall)
+    p_uninstall = sub.add_parser("uninstall", help="Remove all managed links")
+    p_uninstall.add_argument("--targets", help="Comma-separated targets to uninstall (or ALL)")
+    p_uninstall.add_argument("--yes", action="store_true", help="Confirm uninstall without prompts")
+    p_uninstall.set_defaults(func=cmd_uninstall)
     sub.add_parser("config",    help="Show configuration").set_defaults(func=cmd_config)
     sub.add_parser("agents",    help="List agents with descriptions (routing quick-reference)").set_defaults(func=cmd_agents)
 
@@ -2507,6 +2653,8 @@ def main():
 
     p_install = sub.add_parser("install", help="Install resource links to AI tools")
     p_install.add_argument("--all",   action="store_true", help="Install all targets and resources")
+    p_install.add_argument("--targets", help="Comma-separated targets to install (e.g. copilot,claude)")
+    p_install.add_argument("--resources", help="Comma-separated resources to link (e.g. rules,skills)")
     p_install.add_argument("--force", action="store_true", help="Overwrite existing links")
     p_install.set_defaults(func=cmd_install)
 
@@ -2522,7 +2670,8 @@ def main():
         parser.print_help()
         return
 
-    args.func(args)
+    result = args.func(args)
+    return result if isinstance(result, int) else 0
 
 
 if __name__ == "__main__":

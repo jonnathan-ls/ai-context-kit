@@ -206,11 +206,24 @@ When context is **disabled**, ALWAYS.md contains only a minimal stub that inform
 
 | Target | Path | What gets linked |
 |--------|------|-----------------|
-| `copilot` | `~/.config/Code/User/prompts/` | ALWAYS.md as instructions file + settings.json |
+| `copilot` | **Auto-detected**: `~/.config/Code/User/` (Linux), `~/Library/Application Support/Code/User/` (macOS), `%APPDATA%/Code/User/` (Windows) | ALWAYS.md as instructions file + settings.json |
 | `gemini` | `~/.gemini/antigravity/` | rules, skills, agents, workflows |
 | `claude` | `~/.claude/` | rules, skills, agents, workflows |
 | `cursor` | `~/.cursor/` | rules, skills, agents, workflows |
 | `windsurf` | `~/.windsurf/` | rules, skills, agents, workflows |
+
+### Copilot Path Resolution
+
+The `copilot` target uses **smart path detection** based on your operating system:
+
+- **Linux/Unix**: Tries `~/.config/Code/User/`, `~/.config/Code - Insiders/User/`, `~/.config/VSCodium/User/`, etc.
+- **macOS**: Tries `~/Library/Application Support/Code/User/`, `~/Library/Application Support/Code - Insiders/User/`, etc.
+- **Windows**: Tries `%APPDATA%/Code/User/`, then `%USERPROFILE%/AppData/Roaming/Code/User/`
+
+If no VS Code User directory is found, `aictx` will:
+1. Display a warning (without breaking the flow)
+2. Use the first candidate path and attempt to create it if needed
+3. Allow other targets (Claude, Gemini, etc.) to continue installing normally
 
 ## 🏗️ Adding New Skills or Agents
 
