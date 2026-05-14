@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-05-11T22:05:49",
+  "generatedAt": "2026-05-14T01:00:16",
   "contextEnabled": true,
   "contextRoot": "/home/jonnathan/.ai-context/.aictx-runtime/current",
   "units": "KB",
@@ -10,20 +10,19 @@
     "block": 80
   },
   "baseline": {
-    "rules_kb": 12.7,
+    "rules_kb": 11.9,
     "meta_skills_kb": 12.8,
-    "total_kb": 25.5,
+    "total_kb": 24.7,
     "meta_skills": [
       "behavioral-modes",
       "intelligent-routing"
     ]
   },
   "rules": {
-    "ALWAYS": 3.0,
+    "ALWAYS": 2.9,
     "agent-protocol": 1.7,
     "checklist-protocol": 0.9,
     "code-standards": 1.7,
-    "language-policy": 0.7,
     "response-discipline": 1.6,
     "socratic-gate": 1.5,
     "workspace-guard": 1.6
