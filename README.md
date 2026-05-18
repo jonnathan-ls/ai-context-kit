@@ -47,7 +47,7 @@ Adds `aictx` to your PATH and sets `AICTX_HOME`.
 aictx sync
 ```
 
-Scans all folders, regenerates `rules/ALWAYS.md` with the current agents/skills/workflows, and updates Copilot instructions.
+Scans all folders, regenerates `rules/ALWAYS.md`, and refreshes the managed target context files for installed AI tools.
 
 ### 3. Configure AI tools
 
@@ -68,7 +68,7 @@ aictx doctor                # Validate integrity (broken refs, orphans)
 
 | Command | Description |
 |---------|-------------|
-| `aictx sync` | Scan resources, regenerate ALWAYS.md + update Copilot instructions |
+| `aictx sync` | Scan resources, regenerate ALWAYS.md + refresh installed AI target context files |
 | `aictx context` | Manage AI context enable/disable state (see [Context Control](#-context-control) below) |
 | `aictx install` | Interactive link installation |
 | `aictx install --all` | Install all targets and resources |
@@ -206,11 +206,13 @@ When context is **disabled**, ALWAYS.md contains only a minimal stub that inform
 
 | Target | Path | What gets linked |
 |--------|------|-----------------|
-| `copilot` | **Auto-detected**: `~/.config/Code/User/` (Linux), `~/Library/Application Support/Code/User/` (macOS), `%APPDATA%/Code/User/` (Windows) | ALWAYS.md as instructions file + settings.json |
-| `gemini` | `~/.gemini/antigravity/` | rules, skills, agents, workflows |
-| `claude` | `~/.claude/` | rules, skills, agents, workflows |
-| `cursor` | `~/.cursor/` | rules, skills, agents, workflows |
-| `windsurf` | `~/.windsurf/` | rules, skills, agents, workflows |
+| `copilot` | **Auto-detected**: `~/.config/Code/User/` (Linux), `~/Library/Application Support/Code/User/` (macOS), `%APPDATA%/Code/User/` (Windows) | `ALWAYS.md` + managed redirect block in `prompts/ai-context.instructions.md` + settings.json |
+| `gemini` | `~/.gemini/antigravity/` | `ALWAYS.md` + managed redirect block in `GEMINI.md` |
+| `claude` | `~/.claude/` | `ALWAYS.md` + managed redirect block in `CLAUDE.md` |
+| `cursor` | `~/.cursor/` | `ALWAYS.md` + managed redirect block in `.cursorrules` |
+| `windsurf` | `~/.windsurf/` | `ALWAYS.md` + managed redirect block in `.windsurfrules` |
+
+The managed target file always starts with a short dynamic notice that points to `ALWAYS.md`, and any existing user content is preserved below that block.
 
 ### Copilot Path Resolution
 

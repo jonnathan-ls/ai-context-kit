@@ -2,6 +2,7 @@ import os
 import json
 import mimetypes
 import fnmatch
+import subprocess
 from datetime import datetime
 
 def is_binary(file_path):
@@ -24,10 +25,24 @@ def load_gitignore_patterns(root_dir):
         except: pass
     return patterns
 
+def list_git_files(root_dir):
+    try:
+        result = subprocess.run(
+            ['git', '-C', root_dir, 'ls-files', '-co', '--exclude-standard', '-z'],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            check=True,
+        )
+        return [path for path in result.stdout.decode('utf-8', errors='ignore').split('\0') if path]
+    except Exception:
+        return None
+
 def should_exclude(name, path, root_dir, gitignore_patterns, exclude_dirs):
-    if name in exclude_dirs: return True
-    if name.startswith('.') and name != '.ai-context': return True
     rel_path = os.path.relpath(path, root_dir)
+    rel_parts = rel_path.split(os.sep)
+
+    if any(part.startswith('.') and part != '.ai-context' for part in rel_parts): return True
+    if name in exclude_dirs: return True
     for pattern in gitignore_patterns:
         if fnmatch.fnmatch(rel_path, pattern) or fnmatch.fnmatch(name, pattern): return True
     return False
@@ -46,14 +61,16 @@ def get_file_description(file_path):
 
 def generate_map(root_dir):
     files_list = []
-    gitignore_patterns = load_gitignore_patterns(root_dir)
     exclude_dirs = {'node_modules', 'vendor', '__pycache__', 'dist', 'build', '.next', '.git'}
-    
-    for root, dirs, files in os.walk(root_dir):
-        dirs[:] = [d for d in dirs if not should_exclude(d, os.path.join(root, d), root_dir, gitignore_patterns, exclude_dirs)]
-        for file in files:
-            file_path = os.path.join(root, file)
-            if should_exclude(file, file_path, root_dir, gitignore_patterns, exclude_dirs): continue
+
+    candidate_files = list_git_files(root_dir)
+
+    if candidate_files is not None:
+        for rel_path in candidate_files:
+            file_path = os.path.join(root_dir, rel_path)
+            name = os.path.basename(file_path)
+            if should_exclude(name, file_path, root_dir, [], exclude_dirs):
+                continue
             try:
                 stats = os.stat(file_path)
                 if stats.st_size > 1024 * 1024 or is_binary(file_path): continue
@@ -64,6 +81,23 @@ def generate_map(root_dir):
                     "description": get_file_description(file_path)
                 })
             except: continue
+    else:
+        gitignore_patterns = load_gitignore_patterns(root_dir)
+        for root, dirs, files in os.walk(root_dir):
+            dirs[:] = [d for d in dirs if not should_exclude(d, os.path.join(root, d), root_dir, gitignore_patterns, exclude_dirs)]
+            for file in files:
+                file_path = os.path.join(root, file)
+                if should_exclude(file, file_path, root_dir, gitignore_patterns, exclude_dirs): continue
+                try:
+                    stats = os.stat(file_path)
+                    if stats.st_size > 1024 * 1024 or is_binary(file_path): continue
+                    files_list.append({
+                        "path": os.path.relpath(file_path, root_dir),
+                        "size_bytes": stats.st_size,
+                        "type": mimetypes.guess_type(file_path)[0] or "text/plain",
+                        "description": get_file_description(file_path)
+                    })
+                except: continue
 
     files_list.sort(key=lambda x: x['path'])
     

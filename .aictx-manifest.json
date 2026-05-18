@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-05-14T01:00:16",
+  "generatedAt": "2026-05-18T00:53:00",
   "contextEnabled": true,
   "contextRoot": "/home/jonnathan/.ai-context/.aictx-runtime/current",
   "rules": [
@@ -423,6 +423,22 @@
       "tags_list": []
     },
     {
+      "name": "remotion-best-practices",
+      "tag": "",
+      "description": "Best practices for Remotion \u2014 programmatic video creation in React. Use when working with Remotion compositions, sequences, animations, captions/subtitles, spring physics, interpolation, or rendering pipelines. Triggers on remotion, video, composition, sequence, spring, interpolate, renderMedia, caption, subtitle.",
+      "version": "1.0.0",
+      "tags": "remotion, video, react, animation, composition",
+      "allowed_tools": "",
+      "size_kb": 4.4,
+      "tags_list": [
+        "remotion",
+        "video",
+        "react",
+        "animation",
+        "composition"
+      ]
+    },
+    {
       "name": "sdd-expert",
       "tag": "",
       "description": "Specification-Driven Development (SDD) Specialist. Use this skill whenever the user has a Product Requirements Document (PRD) or feature idea and needs to design the technical architecture, map out technical specs, identify high-priority AI/Agent workflows, or create detailed implementation specifications for AI coding agents. Triggers on \"create spec\", \"technical specifications\", \"SDD\", \"architectural spec\", \"review PRD for specs\", or \"map out components\".",
@@ -587,7 +603,7 @@
       "version": "",
       "tags": "",
       "allowed_tools": "",
-      "size_kb": 1.7,
+      "size_kb": 1.8,
       "tags_list": []
     }
   ],

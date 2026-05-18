@@ -207,6 +207,141 @@ def resolve_copilot_paths(warn: bool = True) -> Optional[Dict[str, Path]]:
     }
 
 
+MANAGED_BLOCK_START = "AICTX-MANAGED-START"
+MANAGED_BLOCK_END = "AICTX-MANAGED-END"
+ALWAYS_EMBEDDED_PREFIX = "---\ntrigger: always_on\napplyTo: \"**\"\n---"
+
+
+def _target_process_path(target: dict) -> Optional[Path]:
+    if target.get("link_type") == "copilot":
+        copilot_paths = resolve_copilot_paths(warn=False)
+        if not copilot_paths:
+            return None
+        return copilot_paths["instructions"]
+    return target.get("global_rule")
+
+
+def _target_always_path(target: dict) -> Optional[Path]:
+    process_path = _target_process_path(target)
+    if not process_path:
+        return None
+    return process_path.parent / "ALWAYS.md"
+
+
+def _managed_block(always_path: Path) -> str:
+    return (
+        f"{MANAGED_BLOCK_START}\n"
+        f"This file is updated dynamically by aictx. Read [ALWAYS.md](./{always_path.name}) first.\n"
+        f"Keep any target-specific notes below this block.\n"
+        f"{MANAGED_BLOCK_END}\n"
+    )
+
+
+def _strip_managed_block(text: str) -> tuple[str, bool]:
+    start_idx = text.find(MANAGED_BLOCK_START)
+    if start_idx == -1:
+        return text, False
+
+    end_marker = f"{MANAGED_BLOCK_END}\n"
+    end_idx = text.find(end_marker, start_idx)
+    if end_idx == -1:
+        return text, False
+
+    end_idx += len(end_marker)
+    remainder = text[:start_idx] + text[end_idx:]
+    return remainder.lstrip("\n"), True
+
+
+def _render_managed_target_content(existing_text: str, always_path: Path, always_content: str) -> str:
+    """Render the managed block for a target process file.
+
+    The target file should contain only the managed redirect block plus any
+    pre-existing user content. The actual instructions remain in ALWAYS.md.
+    """
+    block = _managed_block(always_path)
+    remainder, had_block = _strip_managed_block(existing_text)
+    if had_block:
+        remainder = remainder.lstrip("\n")
+    else:
+        remainder = existing_text.lstrip("\n")
+
+    if remainder.startswith(ALWAYS_EMBEDDED_PREFIX):
+        remainder = ""
+
+    if remainder:
+        return f"{block}\n{remainder}"
+
+    return f"{block}\n"
+
+
+def _write_target_context(target: dict, always_content: str, create_process_if_missing: bool) -> bool:
+    process_path = _target_process_path(target)
+    always_path = _target_always_path(target)
+    if not process_path or not always_path:
+        return False
+
+    always_path.parent.mkdir(parents=True, exist_ok=True)
+    always_path.write_text(always_content)
+
+    if not process_path.exists() and not create_process_if_missing:
+        return True
+
+    existing = process_path.read_text() if process_path.exists() else ""
+    process_path.parent.mkdir(parents=True, exist_ok=True)
+    process_path.write_text(_render_managed_target_content(existing, always_path, always_content))
+    return True
+
+
+def _remove_target_context(target: dict) -> None:
+    process_path = _target_process_path(target)
+    always_path = _target_always_path(target)
+
+    if process_path and process_path.exists():
+        try:
+            existing = process_path.read_text()
+            stripped, had_block = _strip_managed_block(existing)
+            if had_block:
+                stripped = stripped.strip("\n")
+                if stripped:
+                    process_path.write_text(stripped + "\n")
+                else:
+                    process_path.unlink()
+        except Exception:
+            pass
+
+    if always_path and always_path.exists():
+        try:
+            always_path.unlink()
+        except Exception:
+            pass
+
+
+def _target_is_installed(target: dict, context_root: Path) -> bool:
+    if target.get("link_type") == "copilot":
+        copilot_paths = resolve_copilot_paths(warn=False)
+        if not copilot_paths:
+            return False
+        settings_path = copilot_paths["settings"]
+        if not settings_path.exists():
+            return False
+
+        try:
+            data = parse_jsonc(settings_path.read_text())
+        except Exception:
+            return False
+
+        locations = data.get("chat.instructionsFilesLocations", {})
+        for resource in RESOURCES:
+            if any(str(context_root / resource) in key or str(AICTX_HOME / resource) in key for key in locations.keys()):
+                return True
+        return False
+
+    base = target.get("base")
+    if not base:
+        return False
+    return any((base / resource).is_symlink() for resource in RESOURCES)
+
+
 def read_context_state() -> dict:
     """Read the current context state from .aictx_state.json."""
     global STATE_FILE
@@ -1152,20 +1287,24 @@ def link_status(dst: Path, src: Path) -> str:
 
 
 def global_rule_status(context_root: Path, target: dict) -> Optional[str]:
-    global_rule_path = target.get("global_rule")
+    global_rule_path = _target_process_path(target)
     if not global_rule_path:
         return None
 
     if not global_rule_path.exists():
-        return f"✗  global_rule ← {global_rule_path}"
+        return f"✗  context file ← {global_rule_path}"
 
     try:
-        always_path = context_root / "rules" / "ALWAYS.md"
-        if always_path.exists() and always_path.read_text() == global_rule_path.read_text():
-            return f"✓  global_rule ← {global_rule_path}"
-        return f"⚠  global_rule ← {global_rule_path} (mismatch)"
+        always_path = _target_always_path(target)
+        if not always_path or not always_path.exists():
+            return f"⚠  context file ← {global_rule_path} (missing ALWAYS.md)"
+
+        text = global_rule_path.read_text()
+        if MANAGED_BLOCK_START in text and MANAGED_BLOCK_END in text:
+            return f"✓  context file ← {global_rule_path}"
+        return f"⚠  context file ← {global_rule_path} (unmanaged content)"
     except Exception as e:
-        return f"⚠  global_rule ← {global_rule_path} ({e})"
+        return f"⚠  context file ← {global_rule_path} ({e})"
 
 
 def parse_jsonc(text: str) -> dict:
@@ -1553,20 +1692,43 @@ def cmd_sync(args):
     print_step(True, "resources-manifest", f"{str(resources_manifest_path).replace(str(HOME), '~')}")
 
     print_header("🔗", "PROPAGATION")
-    
-    # 1. Copilot Special Case
+
+    copilot_legacy = bool(getattr(args, "copilot_legacy", False))
     copilot_paths = resolve_copilot_paths(warn=True)
+
+    # Keep Copilot settings locations refreshed on every sync for compatibility.
     if copilot_paths:
-        copilot_instr = copilot_paths["instructions"]
-        if safe_propagate(copilot_instr, content, "Copilot Instructions"):
-            update_vscode_settings_paths(copilot_paths["settings"], RESOURCES, context_root)
-    
-    # 2. General Tool Overrides (Claude, Gemini, Cursor, Windsurf)
+        update_vscode_settings_paths(copilot_paths["settings"], RESOURCES, context_root)
+        if copilot_legacy:
+            if safe_propagate(copilot_paths["instructions"], content, "Copilot Instructions (legacy)"):
+                print_step(True, "Copilot mode", "legacy file mode enabled")
+    elif copilot_legacy:
+        print_step(False, "Copilot legacy mode", "could not resolve VS Code User path")
+
     for tk, target in TARGETS.items():
-        if target["link_type"] == "folders":
-            gr_path = target.get("global_rule")
-            if gr_path:
-                safe_propagate(gr_path, content, f"{tk.capitalize()} Override")
+        if tk == "copilot" and copilot_legacy:
+            continue
+
+        process_path = _target_process_path(target)
+        if not process_path:
+            print_step(False, f"{tk.capitalize()} context skipped", "target path unresolved")
+            continue
+
+        installed = _target_is_installed(target, context_root)
+        can_sync = installed
+        skip_reason = "target not detected as installed"
+
+        # Compatibility fallback: if the process file already exists, keep it refreshed.
+        if target.get("link_type") == "copilot" and process_path.exists():
+            can_sync = True
+            skip_reason = ""
+
+        if not can_sync:
+            print_step(False, f"{tk.capitalize()} context skipped", skip_reason)
+            continue
+
+        if _write_target_context(target, content, create_process_if_missing=False):
+            print_step(True, f"{tk.capitalize()} context", f"{str(process_path).replace(str(HOME), '~')}")
 
     print(f"\n✅ {G}Sync complete.{RES} All environments are up to date.\n")
     return 0
@@ -1642,6 +1804,8 @@ def cmd_install(args):
         return 0
 
     print(f"\n{B}🚀 AI Context — Installing Links{R}")
+    always_source = context_root / "rules" / "ALWAYS.md"
+    always_content = always_source.read_text() if always_source.exists() else "# ALWAYS.md not found — run: aictx sync\n"
     
     for target_key in selected_targets:
         target = TARGETS[target_key]
@@ -1652,14 +1816,9 @@ def cmd_install(args):
             if not copilot_paths:
                 print(f"  ⚠  Skipping Copilot installation (could not resolve VS Code User path)")
                 continue
-            instr_path = copilot_paths["instructions"]
-            instr_path.parent.mkdir(parents=True, exist_ok=True)
-            always_path = context_root / "rules" / "ALWAYS.md"
-            instr_path.write_text(
-                always_path.read_text() if always_path.exists()
-                else "# ALWAYS.md not found — run: aictx sync\n"
-            )
-            print(f"  ✓  {instr_path.name} ← written from ALWAYS.md")
+            _write_target_context(target, always_content, create_process_if_missing=True)
+            print(f"  ✓  ALWAYS.md ← written in {copilot_paths['instructions'].parent}")
+            print(f"  ✓  {copilot_paths['instructions'].name} ← managed redirect block updated")
             update_vscode_settings_paths(copilot_paths["settings"], selected_resources, context_root)
 
         elif target["link_type"] == "folders":
@@ -1670,28 +1829,13 @@ def cmd_install(args):
                 dst = base / resource
                 print(f"  {make_link(src, dst, force=args.force)}")
 
-            if target.get("global_rule"):
-                global_rule_path = target["global_rule"]
-                global_rule_path.parent.mkdir(parents=True, exist_ok=True)
-                always_path = context_root / "rules" / "ALWAYS.md"
-                if always_path.exists():
-                    global_rule_path.write_text(always_path.read_text())
-                    print(f"  ✓  {global_rule_path.name} ← written from ALWAYS.md")
-                else:
-                    print(f"  ⚠  {global_rule_path.name} ← ALWAYS.md not found, run: aictx sync")
+            if _write_target_context(target, always_content, create_process_if_missing=True):
+                print(f"  ✓  ALWAYS.md ← written in {base}")
+                print(f"  ✓  {target['global_rule'].name} ← managed redirect block updated")
 
     print(f"\n✅ Installation complete. Run `aictx status` to verify.\n")
     return 0
 
-
-def cmd_status(args):
-    """Show the status of linked resources with a premium UI."""
-    global AICTX_HOME
-    AICTX_HOME = resolve_aictx_home()
-    context_root = resolve_context_root(AICTX_HOME)
-    state = read_context_state()
-    is_enabled = state.get("context_enabled", True)
-    
 def cmd_status(args):
     """Show the status of linked resources with a premium UI."""
     global AICTX_HOME
@@ -1726,6 +1870,7 @@ def cmd_status(args):
         if not conf: continue
         
         print(f" {target_icon} {B}{target_key.upper()}{RES} {DIM}— {conf['description']}{RES}")
+        is_linked = True
         
         # Link Status
         if conf["link_type"] == "copilot":
@@ -1737,6 +1882,7 @@ def cmd_status(args):
             status_icon = f"{G}✓{RES}" if instr.exists() else f"{Y}✗{RES}"
             link_label = "Linked" if instr.exists() else "Not Linked"
             print(f"   {status_icon} {B}{link_label}{RES}  → {DIM}{str(instr.parent).replace(str(HOME), '~')}{RES}")
+            is_linked = instr.exists()
         else:
             base = conf["base"]
             linked_res = []
@@ -1755,16 +1901,12 @@ def cmd_status(args):
             print(f"   {status_icon} {B}{label}{RES}  → {DIM}{str(base).replace(str(HOME), '~')}{RES}")
             if missing_res:
                 print(f"     {DIM}↳ Missing links: {Y}{', '.join(missing_res)}{RES}")
+            is_linked = not missing_res
 
-        # Override Status (ALWAYS.md)
-        gr_path = conf.get("global_rule")
-        if conf.get("link_type") == "copilot":
-            copilot_paths = resolve_copilot_paths(warn=False)
-            if copilot_paths:
-                gr_path = copilot_paths["instructions"]
-        if gr_path:
-            gr_status = f"{G}✓{RES}" if gr_path.exists() else f"{DIM}✗{RES}"
-            print(f"   {gr_status} {B}Override{RES} → {DIM}{str(gr_path).replace(str(HOME), '~')}{RES}")
+        # Managed context status (ALWAYS.md + redirect block)
+        gr_status = global_rule_status(context_root, conf)
+        if gr_status:
+            print(f"   {gr_status}")
         
         # Auto-injection (Copilot specific)
         if conf["link_type"] == "copilot":
@@ -1856,12 +1998,9 @@ def cmd_uninstall(args):
         print(f"🗑  {target_key}")
 
         if target["link_type"] == "copilot":
+            _remove_target_context(target)
             copilot_paths = resolve_copilot_paths(warn=False)
             if copilot_paths:
-                instr = copilot_paths["instructions"]
-                if instr.exists():
-                    instr.unlink()
-                    print(f"  ✓  removed {instr.name}")
                 settings = copilot_paths["settings"]
                 if settings.exists():
                     try:
@@ -1880,13 +2019,7 @@ def cmd_uninstall(args):
                 if dst.is_symlink():
                     dst.unlink()
                     print(f"  ✓  removed {resource}")
-            
-            # Also remove global override files
-            if target.get("global_rule"):
-                gr = target["global_rule"]
-                if gr.exists():
-                    gr.unlink()
-                    print(f"  ✓  removed {gr.name}")
+            _remove_target_context(target)
 
         print()
 
@@ -2574,7 +2707,9 @@ def main():
 
     sub = parser.add_subparsers(dest="command")
     sub.add_parser("test", help="Run regression tests on all commands").set_defaults(func=cmd_test)
-    sub.add_parser("sync",      help="Scan resources and regenerate ALWAYS.md").set_defaults(func=cmd_sync)
+    p_sync = sub.add_parser("sync", help="Scan resources and regenerate ALWAYS.md")
+    p_sync.add_argument("--copilot-legacy", action="store_true", help="Write Copilot instructions directly from ALWAYS.md (legacy mode)")
+    p_sync.set_defaults(func=cmd_sync)
     p_doctor = sub.add_parser("doctor", help="Validate integrity of ai-context resources")
     p_doctor.add_argument("--fix", action="store_true", help="Auto-fix missing resource files or orphan references")
     p_doctor.set_defaults(func=cmd_doctor)

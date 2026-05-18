@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-05-14T01:00:16",
+  "generatedAt": "2026-05-18T00:53:00",
   "contextEnabled": true,
   "contextRoot": "/home/jonnathan/.ai-context/.aictx-runtime/current",
   "units": "KB",
@@ -57,6 +57,7 @@
     "python-patterns": 3.9,
     "query-router": 1.3,
     "react-best-practices": 2.9,
+    "remotion-best-practices": 4.4,
     "sdd-expert": 4.0,
     "server-management": 3.8,
     "skill-creator": 33.0,
@@ -71,7 +72,7 @@
     "token-management": 6.9,
     "web-design-guidelines": 1.7,
     "webapp-testing": 4.0,
-    "workspace-mapper": 1.7
+    "workspace-mapper": 1.8
   },
   "agents": {
     "AGENTS": 4.2,

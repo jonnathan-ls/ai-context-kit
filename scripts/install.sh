@@ -36,6 +36,7 @@ echo ""
 # Make scripts executable
 chmod +x "$SCRIPT_DIR/aictx"
 chmod +x "$SCRIPT_DIR/aictx.sh"
+chmod +x "$SCRIPT_DIR/aictx-web" 2>/dev/null || true
 echo -e "  ${GREEN}✓${NC} Made scripts executable"
 
 # Detect shell

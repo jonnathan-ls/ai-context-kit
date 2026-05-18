@@ -14,7 +14,7 @@ This skill provides the ability to generate a structured repository map to assis
 
 ## Execution Flow
 1. Execute the mapping script via Python.
-2. The script will scan the current directory, ignoring irrelevant folders (`node_modules`, `.git`, etc.) and respecting `.gitignore`.
+2. The script will scan the current directory using Git-aware file discovery, ignoring irrelevant folders (`node_modules`, `.git`, etc.) and respecting repository `.gitignore` rules.
 3. A JSON file will be generated at `.ai-context/workspace-map.json` with a line-indexed summary.
 
 ## Command
