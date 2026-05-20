@@ -1,7 +1,7 @@
 ---
 name: harness-generator
 version: 0.1.0
-description: Skill to generate a portable repository harness under .ai-context with symlink integration.
+description: Skill to generate a portable MD-only repository harness under .ai-context with wizard-driven inputs.
 status: draft
 tags: harness, protocol, skills, rules, specs
 ---
@@ -12,32 +12,33 @@ tags: harness, protocol, skills, rules, specs
 
 - Create a new skill named `harness-generator`.
 - Generate repository harness structure under `.ai-context`.
-- Support interactive wizard input for profile capture.
-- Produce core rules, skills, specs, manifest, and validation scripts.
-- Create root symlinks `.agents` and `.claude` to internal harness paths.
+- Provide a wizard-driven interview flow to capture protocol requirements.
+- Produce core rules, skills, specs, manifest, and validation checklist (MD-only).
+- Provide AI-first output format (`MANIFEST` + `FILE:` blocks + plan + validation).
 
 ## Non-scope
 
 - Deep stack-specific scaffolding beyond core protocol files.
 - MCP server runtime for dynamic context delivery.
 - Automatic update/merge of existing user-authored harness content.
+- Scripted generation or validation.
 
 ## Acceptance Criteria
 
-- Generator script creates deterministic harness structure in target repository.
+- AI output defines the harness using `FILE:` blocks with full content.
 - Generated harness includes rules, skills, specs, config, and manifest.
-- Validation script reports PASS/WARN/BLOCK and exits non-zero on BLOCK.
-- Symlink creation is safe and fails on conflicting non-symlink paths.
+- Validation checklist is included in the AI output.
 - Output is concise and focused on senior engineering protocol behavior.
+- The wizard flow collects all required inputs before generation.
 
 ## Implementation Notes
 
 - Keep templates short to control context budget.
-- Use only Python standard library.
-- Avoid mutating unrelated files outside target harness and optional symlinks.
+- Do not rely on scripts or external tooling.
+- Avoid mutating unrelated files outside target harness.
 
 ## Validation
 
-- Run generator against a temporary output path.
-- Run generated validator and ensure PASS for valid structure.
-- Run validator with broken files and confirm BLOCK behavior.
+- Check that the AI output includes MANIFEST + FILE blocks + change plan.
+- Confirm the harness structure is complete and minimal.
+- Confirm the validation checklist is present and actionable.

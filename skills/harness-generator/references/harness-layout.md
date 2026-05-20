@@ -4,10 +4,10 @@ The generated harness uses this minimal structure:
 
 ```text
 .ai-context/
-  MANIFEST.json
+  MANIFEST.md
   README.md
   config/
-    token-budget.json
+    token-budget.md
     protocol.md
   rules/
     code-standards.md
@@ -21,16 +21,14 @@ The generated harness uses this minimal structure:
   specs/
     _template.md
     harness-integration.md
-  scripts/
-    validate_harness.py
-  agents/
-  claude/
 ```
 
 Repository root integration:
 
-- `.agents` symlink to `.ai-context/agents`
-- `.claude` symlink to `.ai-context/claude`
+- Optional: document how to point your AI tool to `.ai-context`.
+- Optional symlinks:
+  - `.agents` -> `.ai-context/agents`
+  - `.claude` -> `.ai-context/claude`
 
 Design principles:
 
