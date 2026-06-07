@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-05-29T21:30:30",
-  "contextEnabled": false,
+  "generatedAt": "2026-06-06T15:37:37",
+  "contextEnabled": true,
   "contextRoot": "/home/jonnathan/.ai-context/.aictx-runtime/current",
   "rules": [
     {
@@ -11,7 +11,7 @@
       "trigger": "always_on",
       "description": "Agent & skill loading protocol \u2014 P0/P1/P2 enforcement, routing, activation checklist",
       "tags": "core, routing, activation",
-      "size_kb": 0.0,
+      "size_kb": 1.7,
       "tags_list": [
         "core",
         "routing",
@@ -25,7 +25,7 @@
       "trigger": "always_on",
       "description": "Pre-response checklist and final validation gate before delivering any output",
       "tags": "core, safety, validation",
-      "size_kb": 0.0,
+      "size_kb": 0.9,
       "tags_list": [
         "core",
         "safety",
@@ -39,7 +39,7 @@
       "trigger": "always_on",
       "description": "Clean Code standards, file awareness, task complexity tiers",
       "tags": "core, quality, code",
-      "size_kb": 0.0,
+      "size_kb": 1.7,
       "tags_list": [
         "core",
         "quality",
@@ -53,7 +53,7 @@
       "trigger": "always_on",
       "description": "Enforces strict response boundaries, scope control, and token efficiency.",
       "tags": "core, scope, token",
-      "size_kb": 0.0,
+      "size_kb": 1.6,
       "tags_list": [
         "core",
         "scope",
@@ -67,7 +67,7 @@
       "trigger": "always_on",
       "description": "Clarification gate \u2014 ask before assuming on ambiguous or destructive requests",
       "tags": "safety, clarification, scope",
-      "size_kb": 0.0,
+      "size_kb": 1.5,
       "tags_list": [
         "safety",
         "clarification",
@@ -81,7 +81,7 @@
       "trigger": "always_on",
       "description": "Workspace navigation guard \u2014 require workspace-map before deep repo search.",
       "tags": "workspace, harness, token",
-      "size_kb": 0.0,
+      "size_kb": 1.6,
       "tags_list": [
         "workspace",
         "harness",
@@ -97,7 +97,7 @@
       "version": "1.0.0",
       "tags": "",
       "allowed_tools": "",
-      "size_kb": 0.0,
+      "size_kb": 1.9,
       "tags_list": []
     },
     {
@@ -107,7 +107,7 @@
       "version": "1.0.0",
       "tags": "",
       "allowed_tools": "",
-      "size_kb": 0.0,
+      "size_kb": 4.2,
       "tags_list": []
     },
     {
@@ -117,7 +117,7 @@
       "version": "1.0.0",
       "tags": "",
       "allowed_tools": "",
-      "size_kb": 0.0,
+      "size_kb": 5.5,
       "tags_list": []
     },
     {
@@ -127,7 +127,7 @@
       "version": "1.0.0",
       "tags": "",
       "allowed_tools": "Read, Glob, Grep",
-      "size_kb": 0.0,
+      "size_kb": 4.6,
       "tags_list": []
     },
     {
@@ -137,7 +137,7 @@
       "version": "1.0.0",
       "tags": "",
       "allowed_tools": "",
-      "size_kb": 0.0,
+      "size_kb": 6.6,
       "tags_list": []
     },
     {
@@ -147,7 +147,7 @@
       "version": "1.0.0",
       "tags": "token, budgeting",
       "allowed_tools": "Read, Glob, Grep, Bash",
-      "size_kb": 0.0,
+      "size_kb": 1.2,
       "tags_list": [
         "token",
         "budgeting"
@@ -160,7 +160,7 @@
       "version": "1.0.0",
       "tags": "workspace, context, token",
       "allowed_tools": "Read, Glob, Grep",
-      "size_kb": 0.0,
+      "size_kb": 1.4,
       "tags_list": [
         "workspace",
         "context",
@@ -174,7 +174,7 @@
       "version": "1.0.0",
       "tags": "harness, context, token",
       "allowed_tools": "Read, Glob, Grep, Bash",
-      "size_kb": 0.0,
+      "size_kb": 2.5,
       "tags_list": [
         "harness",
         "context",
@@ -188,7 +188,7 @@
       "version": "1.0.0",
       "tags": "quality, verification, safety",
       "allowed_tools": "Read, Grep, Bash",
-      "size_kb": 0.0,
+      "size_kb": 0.9,
       "tags_list": [
         "quality",
         "verification",
@@ -202,7 +202,7 @@
       "version": "1.0.0",
       "tags": "",
       "allowed_tools": "",
-      "size_kb": 0.0,
+      "size_kb": 3.2,
       "tags_list": []
     },
     {
@@ -212,24 +212,26 @@
       "version": "1.0.0",
       "tags": "",
       "allowed_tools": "Read, Write, Edit, Glob, Grep, Bash",
-      "size_kb": 0.0,
+      "size_kb": 12.2,
       "tags_list": []
     },
     {
       "name": "harness-generator",
       "tag": "",
-      "description": "Generates a portable, MD-only repository harness using AI-guided protocol logic (no scripts). Use this whenever the user wants a protocol that guides AI execution with senior-level quality, safety, and performance without depending on AI-Context or local automation.",
-      "version": "1.0.0",
-      "tags": "harness, protocol, quality, safety, architecture, performance",
+      "description": "Generates a context-aware, MD-only agent harness for a repository. The harness anchors agents to a stable operational environment using feed-forward (rules, specs, skills) and feedback (sensors, guardrails, contracts) so agents can execute long-horizon tasks reliably without constant human steering. Generates AGENTS.md at the repository root so any AI tool (Claude Code, Codex, Gemini CLI, Windsurf, Cursor, etc.) auto-discovers the harness.",
+      "version": "2.0.0",
+      "tags": "harness, protocol, quality, safety, architecture, performance, agentic, resilience",
       "allowed_tools": "Read, Write, Glob, Grep",
-      "size_kb": 0.0,
+      "size_kb": 22.2,
       "tags_list": [
         "harness",
         "protocol",
         "quality",
         "safety",
         "architecture",
-        "performance"
+        "performance",
+        "agentic",
+        "resilience"
       ]
     },
     {
@@ -239,7 +241,7 @@
       "version": "1.0.0",
       "tags": "",
       "allowed_tools": "",
-      "size_kb": 0.0,
+      "size_kb": 4.2,
       "tags_list": []
     },
     {
@@ -249,7 +251,7 @@
       "version": "1.0.0",
       "tags": "",
       "allowed_tools": "",
-      "size_kb": 0.0,
+      "size_kb": 7.3,
       "tags_list": []
     },
     {
@@ -259,7 +261,7 @@
       "version": "1.0.0",
       "tags": "spec, planning, quality",
       "allowed_tools": "Read, Glob, Grep",
-      "size_kb": 0.0,
+      "size_kb": 1.2,
       "tags_list": [
         "spec",
         "planning",
@@ -273,7 +275,7 @@
       "version": "1.0.0",
       "tags": "memory, privacy, token",
       "allowed_tools": "Read, Write",
-      "size_kb": 0.0,
+      "size_kb": 1.0,
       "tags_list": [
         "memory",
         "privacy",
@@ -287,7 +289,7 @@
       "version": "1.0.0",
       "tags": "",
       "allowed_tools": "",
-      "size_kb": 0.0,
+      "size_kb": 15.2,
       "tags_list": []
     },
     {
@@ -297,7 +299,7 @@
       "version": "0.1.0",
       "tags": "multimodal, orchestration, prompts",
       "allowed_tools": "Read, Glob, Grep",
-      "size_kb": 0.0,
+      "size_kb": 1.4,
       "tags_list": [
         "multimodal",
         "orchestration",
@@ -311,7 +313,7 @@
       "version": "0.1.0",
       "tags": "multimodal, orchestration, workspace, evals",
       "allowed_tools": "Read, Glob, Grep, Bash",
-      "size_kb": 0.0,
+      "size_kb": 1.2,
       "tags_list": [
         "multimodal",
         "orchestration",
@@ -326,7 +328,7 @@
       "version": "1.0.0",
       "tags": "",
       "allowed_tools": "Read, Write, Edit, Glob, Grep, Bash",
-      "size_kb": 0.0,
+      "size_kb": 9.7,
       "tags_list": []
     },
     {
@@ -336,7 +338,7 @@
       "version": "1.0.0",
       "tags": "",
       "allowed_tools": "",
-      "size_kb": 0.0,
+      "size_kb": 8.2,
       "tags_list": []
     },
     {
@@ -346,7 +348,7 @@
       "version": "1.0.0",
       "tags": "",
       "allowed_tools": "",
-      "size_kb": 0.0,
+      "size_kb": 5.2,
       "tags_list": []
     },
     {
@@ -356,7 +358,7 @@
       "version": "1.0.0",
       "tags": "safety, privacy",
       "allowed_tools": "Read, Grep, Bash",
-      "size_kb": 0.0,
+      "size_kb": 1.0,
       "tags_list": [
         "safety",
         "privacy"
@@ -369,7 +371,7 @@
       "version": "1.0",
       "tags": "",
       "allowed_tools": "",
-      "size_kb": 0.0,
+      "size_kb": 10.6,
       "tags_list": []
     },
     {
@@ -379,7 +381,7 @@
       "version": "1.0.0",
       "tags": "",
       "allowed_tools": "",
-      "size_kb": 0.0,
+      "size_kb": 3.5,
       "tags_list": []
     },
     {
@@ -389,7 +391,7 @@
       "version": "1.0.0",
       "tags": "",
       "allowed_tools": "",
-      "size_kb": 0.0,
+      "size_kb": 4.3,
       "tags_list": []
     },
     {
@@ -399,7 +401,7 @@
       "version": "0.1.0",
       "tags": "multimodal, prompts, media",
       "allowed_tools": "Read, Glob, Grep",
-      "size_kb": 0.0,
+      "size_kb": 1.0,
       "tags_list": [
         "multimodal",
         "prompts",
@@ -413,7 +415,7 @@
       "version": "1.0.0",
       "tags": "",
       "allowed_tools": "",
-      "size_kb": 0.0,
+      "size_kb": 3.9,
       "tags_list": []
     },
     {
@@ -423,7 +425,7 @@
       "version": "1.0.0",
       "tags": "routing, token",
       "allowed_tools": "Read, Glob, Grep",
-      "size_kb": 0.0,
+      "size_kb": 1.3,
       "tags_list": [
         "routing",
         "token"
@@ -436,24 +438,8 @@
       "version": "1.0.0",
       "tags": "",
       "allowed_tools": "",
-      "size_kb": 0.0,
+      "size_kb": 2.9,
       "tags_list": []
-    },
-    {
-      "name": "remotion-best-practices",
-      "tag": "",
-      "description": "Best practices for Remotion \u2014 programmatic video creation in React. Use when working with Remotion compositions, sequences, animations, captions/subtitles, spring physics, interpolation, or rendering pipelines. Triggers on remotion, video, composition, sequence, spring, interpolate, renderMedia, caption, subtitle.",
-      "version": "1.0.0",
-      "tags": "remotion, video, react, animation, composition",
-      "allowed_tools": "",
-      "size_kb": 0.0,
-      "tags_list": [
-        "remotion",
-        "video",
-        "react",
-        "animation",
-        "composition"
-      ]
     },
     {
       "name": "sdd-expert",
@@ -462,7 +448,7 @@
       "version": "1.0.0",
       "tags": "",
       "allowed_tools": "",
-      "size_kb": 0.0,
+      "size_kb": 4.0,
       "tags_list": []
     },
     {
@@ -472,7 +458,7 @@
       "version": "1.0.0",
       "tags": "",
       "allowed_tools": "",
-      "size_kb": 0.0,
+      "size_kb": 3.8,
       "tags_list": []
     },
     {
@@ -482,7 +468,7 @@
       "version": "1.0.0",
       "tags": "",
       "allowed_tools": "",
-      "size_kb": 0.0,
+      "size_kb": 33.0,
       "tags_list": []
     },
     {
@@ -492,7 +478,7 @@
       "version": "1.0.0",
       "tags": "token, routing, smart-tags",
       "allowed_tools": "Read, Glob, Grep",
-      "size_kb": 0.0,
+      "size_kb": 1.9,
       "tags_list": [
         "token",
         "routing",
@@ -506,7 +492,7 @@
       "version": "1.0.0",
       "tags": "spec, harness, safety",
       "allowed_tools": "Read, Write, Glob, Grep",
-      "size_kb": 0.0,
+      "size_kb": 1.3,
       "tags_list": [
         "spec",
         "harness",
@@ -520,7 +506,7 @@
       "version": "1.0.0",
       "tags": "spec, planning",
       "allowed_tools": "Read, Write, Glob, Grep",
-      "size_kb": 0.0,
+      "size_kb": 1.0,
       "tags_list": [
         "spec",
         "planning"
@@ -533,7 +519,7 @@
       "version": "1.0.0",
       "tags": "",
       "allowed_tools": "",
-      "size_kb": 0.0,
+      "size_kb": 2.3,
       "tags_list": []
     },
     {
@@ -543,7 +529,7 @@
       "version": "1.0.0",
       "tags": "",
       "allowed_tools": "",
-      "size_kb": 0.0,
+      "size_kb": 6.8,
       "tags_list": []
     },
     {
@@ -553,7 +539,7 @@
       "version": "1.0.0",
       "tags": "",
       "allowed_tools": "",
-      "size_kb": 0.0,
+      "size_kb": 2.9,
       "tags_list": []
     },
     {
@@ -563,7 +549,7 @@
       "version": "1.0.0",
       "tags": "",
       "allowed_tools": "",
-      "size_kb": 0.0,
+      "size_kb": 5.8,
       "tags_list": []
     },
     {
@@ -573,7 +559,7 @@
       "version": "1.0.0",
       "tags": "token, compression",
       "allowed_tools": "Read, Bash, Grep",
-      "size_kb": 0.0,
+      "size_kb": 1.4,
       "tags_list": [
         "token",
         "compression"
@@ -586,7 +572,7 @@
       "version": "1.0.0",
       "tags": "token, context, workflow",
       "allowed_tools": "Read, Glob, Grep, Bash",
-      "size_kb": 0.0,
+      "size_kb": 6.9,
       "tags_list": [
         "token",
         "context",
@@ -600,7 +586,7 @@
       "version": "1.0.0",
       "tags": "",
       "allowed_tools": "",
-      "size_kb": 0.0,
+      "size_kb": 1.7,
       "tags_list": []
     },
     {
@@ -610,7 +596,7 @@
       "version": "1.0.0",
       "tags": "",
       "allowed_tools": "",
-      "size_kb": 0.0,
+      "size_kb": 4.0,
       "tags_list": []
     },
     {
@@ -620,7 +606,7 @@
       "version": "",
       "tags": "",
       "allowed_tools": "",
-      "size_kb": 0.0,
+      "size_kb": 1.8,
       "tags_list": []
     }
   ],
@@ -630,7 +616,7 @@
       "description": "Expert in systematic debugging, root cause analysis, and crash investigation. Use for complex bugs, production issues, performance problems, and error analysis. Triggers on bug, error, crash, not working, broken, investigate, fix.",
       "skills": "clean-code, systematic-debugging",
       "tags": "",
-      "size_kb": 0.0,
+      "size_kb": 8.0,
       "tags_list": []
     },
     {
@@ -638,7 +624,7 @@
       "description": "Senior Frontend Architect who builds maintainable React/Next.js systems with performance-first mindset. Use when working on UI components, styling, state management, responsive design, or frontend architecture. Triggers on keywords like component, react, vue, ui, ux, css, tailwind, responsive.",
       "skills": "clean-code, react-best-practices, web-design-guidelines, tailwind-patterns, frontend-design",
       "tags": "",
-      "size_kb": 0.0,
+      "size_kb": 25.2,
       "tags_list": []
     },
     {
@@ -646,7 +632,7 @@
       "description": "Expert in React Native and Flutter mobile development. Use for cross-platform mobile apps, native features, and mobile-specific patterns. Triggers on mobile, react native, flutter, ios, android, app store, expo.",
       "skills": "clean-code, mobile-design",
       "tags": "",
-      "size_kb": 0.0,
+      "size_kb": 12.6,
       "tags_list": []
     },
     {
@@ -654,7 +640,7 @@
       "description": "Multi-agent coordination and task orchestration. Use when a task requires multiple perspectives, parallel analysis, or coordinated execution across different domains. Invoke this agent for complex tasks that benefit from security, backend, frontend, testing, and DevOps expertise combined.",
       "skills": "clean-code, parallel-agents, behavioral-modes, brainstorming, architecture, bash-linux",
       "tags": "",
-      "size_kb": 0.0,
+      "size_kb": 13.5,
       "tags_list": []
     },
     {
@@ -662,7 +648,7 @@
       "description": "Expert in testing, TDD, and test automation. Use for writing tests, improving coverage, debugging test failures. Triggers on test, spec, coverage, jest, pytest, playwright, e2e, unit test.",
       "skills": "clean-code, testing-patterns, tdd-workflow, webapp-testing",
       "tags": "",
-      "size_kb": 0.0,
+      "size_kb": 3.3,
       "tags_list": []
     }
   ],
@@ -671,21 +657,21 @@
       "name": "compact",
       "description": "Context compaction command. Produces a stable, high-signal summary and compresses bulky logs to reduce context window pressure.",
       "tags": "",
-      "size_kb": 0.0,
+      "size_kb": 1.5,
       "tags_list": []
     },
     {
       "name": "debug",
       "description": "Debugging command. Activates DEBUG mode for systematic problem investigation.",
       "tags": "",
-      "size_kb": 0.0,
+      "size_kb": 1.7,
       "tags_list": []
     },
     {
       "name": "harness",
       "description": "Context harness command. Runs a pre-flight checklist before moderate/complex work to prevent missing-context errors.",
       "tags": "",
-      "size_kb": 0.0,
+      "size_kb": 1.1,
       "tags_list": []
     }
   ],
@@ -695,7 +681,7 @@
       "description": "Skill to generate a portable MD-only repository harness under .ai-context with wizard-driven inputs.",
       "version": "0.1.0",
       "tags": "harness, protocol, skills, rules, specs",
-      "size_kb": 0.0,
+      "size_kb": 1.6,
       "tags_list": [
         "harness",
         "protocol",
@@ -709,7 +695,7 @@
       "description": "Request-to-context middleware pipeline for AI Context (harness, Smart Tags, token budgeting, and verification).",
       "version": "1.0.0",
       "tags": "middleware, harness, smart-tags, token",
-      "size_kb": 0.0,
+      "size_kb": 3.2,
       "tags_list": [
         "middleware",
         "harness",
