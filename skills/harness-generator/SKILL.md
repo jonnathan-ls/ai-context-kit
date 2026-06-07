@@ -75,7 +75,8 @@ Minimal surface. Every file earns its place.
 
 | File | Purpose |
 |------|---------|
-| `.harness/archive/<id>/PROGRESS.json` | Frozen snapshot — immutable record |
+| `.harness/archive/<id>/PROGRESS.json` | Frozen snapshot — immutable record (AI source of truth) |
+| `.harness/archive/<id>/README.md` | Human-readable summary generated at archive time |
 
 ### Optional / just-in-time
 
@@ -296,12 +297,15 @@ The harness prioritizes machine-readable state (JSON for AI), but humans need vi
 
 **Rule: AI never reads generated human docs. The source of truth is always the feature PROGRESS.json + git history.**
 
+When a feature is archived, the AI generates `archive/<id>/README.md` from the feature's PROGRESS.json. This file is **immutable** — generated once at archive time, never updated again.
+
 For human review of completed features:
 - **Source of truth**: `.harness/archive/<id>/PROGRESS.json` + git diff of the feature's commits
-- **On-demand view**: If the human wants a readable summary, generate a temporary Markdown/HTML from the archive PROGRESS on request. Do NOT maintain a separate living document.
-- **Monorepo**: Package-level features may have a `README.md` inside the package directory, but this is project documentation, not harness state. The harness only tracks PROGRESS.json.
+- **Human-readable summary**: `.harness/archive/<id>/README.md` — generated at archive time from PROGRESS.json
+- **On-demand project view**: If the human wants a consolidated summary of all features, generate a temporary `.harness/FEATURES.md` from all archive/README.md files on request. This is a view, not state — can be deleted and re-generated.
+- **Monorepo**: Package-level `README.md` inside the package directory is project documentation, not harness state.
 
-Do NOT create HTML files, wikis, or living documents that the harness must keep synchronized. The AI's context budget is too scarce for that. Humans can read archive/ directly or request a generated summary when needed.
+Do NOT create wikis, HTML files, or living documents that the harness must keep synchronized. The AI's context budget is too scarce for that. Humans can read archive/README.md directly or request a generated summary when needed.
 
 ---
 
@@ -325,7 +329,7 @@ Stop and emit `BLOCK: <reason>` when:
 - Sensor layer: `sensors/checklist.md`
 - Spec layer (if required): `specs/PRD.md`, `specs/TECHNICAL.md`
 - Feature layer: `features/<id>/PROGRESS.json`
-- Archive layer: `archive/<id>/PROGRESS.json`
+- Archive layer: `archive/<id>/PROGRESS.json` + `archive/<id>/README.md`
 - Optional: `bootstrap.md`
 - Each file as `FILE: <path>` + fenced content (no commentary inside fences)
 - Change plan: numbered, idempotent steps with `mkdir -p`
